@@ -12,19 +12,21 @@ import { WeakPasswordError } from "@/domain/user/errors/WeakPasswordError";
 function makeDeps(
   overrides: Partial<{
     findByEmail: UserRepositoryPort["findByEmail"];
+    findById: UserRepositoryPort["findById"];
     save: UserRepositoryPort["save"];
     hash: PasswordHasherPort["hash"];
     verify: PasswordHasherPort["verify"];
   }> = {},
 ) {
   const findByEmail = vi.fn(overrides.findByEmail ?? (async () => null));
+  const findById = vi.fn(overrides.findById ?? (async () => null));
   const save = vi.fn(overrides.save ?? (async () => undefined));
   const hash = vi.fn(overrides.hash ?? (async () => "$2a$10$hashed"));
   const verify = vi.fn(overrides.verify ?? (async () => true));
 
-  const userRepo: UserRepositoryPort = { findByEmail, save };
+  const userRepo: UserRepositoryPort = { findByEmail, findById, save };
   const hasher: PasswordHasherPort = { hash, verify };
-  return { userRepo, hasher, findByEmail, save, hash, verify };
+  return { userRepo, hasher, findByEmail, findById, save, hash, verify };
 }
 
 const validInput = {

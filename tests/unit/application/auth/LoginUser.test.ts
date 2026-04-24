@@ -22,6 +22,7 @@ function makePersistedUser() {
 function makeDeps(
   overrides: Partial<{
     findByEmail: UserRepositoryPort["findByEmail"];
+    findById: UserRepositoryPort["findById"];
     save: UserRepositoryPort["save"];
     hash: PasswordHasherPort["hash"];
     verify: PasswordHasherPort["verify"];
@@ -33,6 +34,7 @@ function makeDeps(
   }> = {},
 ) {
   const findByEmail = vi.fn(overrides.findByEmail ?? (async () => null));
+  const findById = vi.fn(overrides.findById ?? (async () => null));
   const userSave = vi.fn(overrides.save ?? (async () => undefined));
   const hash = vi.fn(overrides.hash ?? (async () => "$2a$10$fake-hash"));
   const verify = vi.fn(overrides.verify ?? (async () => true));
@@ -49,7 +51,11 @@ function makeDeps(
     overrides.sessionDeleteExpired ?? (async () => 0),
   );
 
-  const userRepo: UserRepositoryPort = { findByEmail, save: userSave };
+  const userRepo: UserRepositoryPort = {
+    findByEmail,
+    findById,
+    save: userSave,
+  };
   const hasher: PasswordHasherPort = { hash, verify };
   const sessionRepo: SessionRepositoryPort = {
     save: sessionSave,
