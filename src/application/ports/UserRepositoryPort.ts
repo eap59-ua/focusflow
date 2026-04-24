@@ -3,5 +3,6 @@ import type { User } from "@/domain/user/User";
 
 export interface UserRepositoryPort {
   findByEmail(email: Email): Promise<User | null>;
+  findById(id: string): Promise<User | null>;
   save(user: User): Promise<void>;
 }
