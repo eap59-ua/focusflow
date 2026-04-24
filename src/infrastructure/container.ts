@@ -1,8 +1,17 @@
-/**
- * Composition root. Los adapters concretos se construyen aquí y se exponen
- * a la capa de presentación. Los use cases reciben sus puertos por inyección,
- * nunca importan adapters directamente.
- */
-export const container = {} as const;
+import type { PrismaClient } from "@prisma/client";
 
-export type Container = typeof container;
+import { RegisterUser } from "@/application/use-cases/auth/RegisterUser";
+
+import { PrismaUserRepository } from "./adapters/prisma/PrismaUserRepository";
+import { BcryptPasswordHasher } from "./adapters/security/BcryptPasswordHasher";
+
+export interface Container {
+  readonly registerUser: RegisterUser;
+}
+
+export function buildContainer(prisma: PrismaClient): Container {
+  const userRepo = new PrismaUserRepository(prisma);
+  const hasher = new BcryptPasswordHasher();
+  const registerUser = new RegisterUser({ userRepo, hasher });
+  return { registerUser };
+}

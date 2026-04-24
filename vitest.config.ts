@@ -10,6 +10,17 @@ export default defineConfig({
       "tests/unit/**/*.test.tsx",
     ],
     setupFiles: [],
+    coverage: {
+      provider: "v8",
+      include: ["src/domain/**", "src/application/**"],
+      reporter: ["text", "html", "lcov"],
+      thresholds: {
+        lines: 80,
+        functions: 80,
+        branches: 80,
+        statements: 80,
+      },
+    },
   },
   resolve: {
     alias: {
