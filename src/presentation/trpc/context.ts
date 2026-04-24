@@ -50,3 +50,7 @@ export function createContext(opts: FetchCreateContextFnOptions): AppContext {
     resHeaders: opts.resHeaders,
   };
 }
+
+export function getServerContainer(): Container {
+  return buildContainer(getPrismaClient());
+}

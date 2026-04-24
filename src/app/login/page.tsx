@@ -1,7 +1,7 @@
 "use client";
 
 import { createTRPCClient, httpBatchLink, TRPCClientError } from "@trpc/client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import type { AppRouter } from "@/presentation/trpc/routers/_app";
@@ -12,12 +12,14 @@ function makeTrpcClient() {
   });
 }
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const justRegistered = searchParams.get("registered") === "1";
+
   const [trpc] = useState(() => makeTrpcClient());
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -26,8 +28,9 @@ export default function RegisterPage() {
     setError(null);
     setLoading(true);
     try {
-      await trpc.auth.register.mutate({ email, password, displayName });
-      router.push("/login?registered=1");
+      await trpc.auth.login.mutate({ email, password });
+      router.push("/");
+      router.refresh();
     } catch (err) {
       setError(
         err instanceof TRPCClientError ? err.message : "Error inesperado",
@@ -38,7 +41,12 @@ export default function RegisterPage() {
 
   return (
     <main className="mx-auto mt-16 max-w-sm px-4">
-      <h1 className="mb-6 text-2xl font-semibold">Crear cuenta FocusFlow</h1>
+      <h1 className="mb-6 text-2xl font-semibold">Iniciar sesión</h1>
+      {justRegistered && (
+        <p className="mb-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+          Cuenta creada. Ahora puedes iniciar sesión.
+        </p>
+      )}
       <form onSubmit={handleSubmit} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-sm font-medium">Email</span>
@@ -51,23 +59,12 @@ export default function RegisterPage() {
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Contraseña (mín. 8)</span>
+          <span className="text-sm font-medium">Contraseña</span>
           <input
             type="password"
             required
-            minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-neutral-300 px-3 py-2"
-          />
-        </label>
-        <label className="flex flex-col gap-1">
-          <span className="text-sm font-medium">Nombre a mostrar</span>
-          <input
-            type="text"
-            required
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
             className="rounded border border-neutral-300 px-3 py-2"
           />
         </label>
@@ -76,7 +73,7 @@ export default function RegisterPage() {
           disabled={loading}
           className="rounded bg-black py-2 text-white disabled:opacity-50"
         >
-          {loading ? "Creando..." : "Crear cuenta"}
+          {loading ? "Entrando..." : "Entrar"}
         </button>
         {error && <p className="text-sm text-red-600">{error}</p>}
       </form>
