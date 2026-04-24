@@ -1,0 +1,12 @@
+// FocusFlow — Prisma schema
+// Los modelos se añadirán en los slices sucesivos (User, Integration, Briefing, …).
+// Ver docs/adr/0001-stack-y-arquitectura.md para el porqué del stack.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
