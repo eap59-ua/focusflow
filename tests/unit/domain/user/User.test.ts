@@ -58,4 +58,23 @@ describe("User aggregate", () => {
       InvalidDisplayNameError,
     );
   });
+
+  it("User.restore reconstruye el agregado con los props dados sin ejecutar invariantes", () => {
+    const createdAt = new Date("2026-01-01T10:00:00.000Z");
+    const updatedAt = new Date("2026-01-02T10:00:00.000Z");
+    const user = User.restore({
+      id: "11111111-2222-3333-4444-555555555555",
+      email: Email.create("persisted@example.com"),
+      hashedPassword: HashedPassword.fromHash("$2a$10$persisted"),
+      displayName: "Persisted",
+      createdAt,
+      updatedAt,
+    });
+
+    expect(user.id).toBe("11111111-2222-3333-4444-555555555555");
+    expect(user.email.value).toBe("persisted@example.com");
+    expect(user.displayName).toBe("Persisted");
+    expect(user.createdAt).toBe(createdAt);
+    expect(user.updatedAt).toBe(updatedAt);
+  });
 });

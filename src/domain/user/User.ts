@@ -22,6 +22,10 @@ export interface CreateUserInput {
 export class User {
   private constructor(private readonly props: UserProps) {}
 
+  static restore(props: UserProps): User {
+    return new User(props);
+  }
+
   static create(input: CreateUserInput): User {
     if (input.displayName.trim().length === 0) {
       throw new InvalidDisplayNameError();
