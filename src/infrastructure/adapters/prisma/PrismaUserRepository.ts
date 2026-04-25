@@ -25,6 +25,9 @@ export class PrismaUserRepository implements UserRepositoryPort {
     email: string;
     hashedPassword: string;
     displayName: string;
+    briefingHour: number;
+    briefingTimezone: string;
+    briefingEnabled: boolean;
     createdAt: Date;
     updatedAt: Date;
   }): User {
@@ -33,6 +36,9 @@ export class PrismaUserRepository implements UserRepositoryPort {
       email: Email.create(row.email),
       hashedPassword: HashedPassword.fromHash(row.hashedPassword),
       displayName: row.displayName,
+      briefingHour: row.briefingHour,
+      briefingTimezone: row.briefingTimezone,
+      briefingEnabled: row.briefingEnabled,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });
@@ -46,6 +52,9 @@ export class PrismaUserRepository implements UserRepositoryPort {
         email: user.email.value,
         hashedPassword: user.hashedPassword,
         displayName: user.displayName,
+        briefingHour: user.briefingHour,
+        briefingTimezone: user.briefingTimezone,
+        briefingEnabled: user.briefingEnabled,
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
@@ -53,6 +62,9 @@ export class PrismaUserRepository implements UserRepositoryPort {
         email: user.email.value,
         hashedPassword: user.hashedPassword,
         displayName: user.displayName,
+        briefingHour: user.briefingHour,
+        briefingTimezone: user.briefingTimezone,
+        briefingEnabled: user.briefingEnabled,
         updatedAt: user.updatedAt,
       },
     });
