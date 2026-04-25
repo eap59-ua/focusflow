@@ -2,6 +2,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { parse as parseCookie } from "cookie";
+import { Redis } from "ioredis";
 
 import { buildContainer, type Container } from "@/infrastructure/container";
 
@@ -13,6 +14,7 @@ export interface AppContext {
 }
 
 let prismaSingleton: PrismaClient | undefined;
+let redisSingleton: Redis | undefined;
 
 function getPrismaClient(): PrismaClient {
   if (!prismaSingleton) {
@@ -28,6 +30,19 @@ function getPrismaClient(): PrismaClient {
   return prismaSingleton;
 }
 
+function getRedisClient(): Redis {
+  if (!redisSingleton) {
+    const url = process.env.REDIS_URL;
+    if (!url) {
+      throw new Error(
+        "REDIS_URL no está definida. Revisa tu .env antes de arrancar el servidor.",
+      );
+    }
+    redisSingleton = new Redis(url, { maxRetriesPerRequest: null });
+  }
+  return redisSingleton;
+}
+
 export function sessionCookieName(): string {
   return process.env.SESSION_COOKIE_NAME ?? "focusflow.session";
 }
@@ -41,7 +56,8 @@ export function extractSessionId(req: Request): string | null {
 
 export function createContext(opts: FetchCreateContextFnOptions): AppContext {
   const prisma = getPrismaClient();
-  const container = buildContainer(prisma);
+  const redis = getRedisClient();
+  const container = buildContainer({ prisma, redis });
   const sessionId = extractSessionId(opts.req);
   return {
     prisma,
@@ -52,5 +68,5 @@ export function createContext(opts: FetchCreateContextFnOptions): AppContext {
 }
 
 export function getServerContainer(): Container {
-  return buildContainer(getPrismaClient());
+  return buildContainer({ prisma: getPrismaClient(), redis: getRedisClient() });
 }

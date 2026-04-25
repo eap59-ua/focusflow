@@ -1,13 +1,22 @@
 import type { PrismaClient } from "@prisma/client";
+import type { Redis } from "ioredis";
 
 import { GetCurrentUser } from "@/application/use-cases/auth/GetCurrentUser";
 import { LoginUser } from "@/application/use-cases/auth/LoginUser";
 import { LogoutUser } from "@/application/use-cases/auth/LogoutUser";
 import { RegisterUser } from "@/application/use-cases/auth/RegisterUser";
+import { BeginGmailConnection } from "@/application/use-cases/gmail/BeginGmailConnection";
+import { CompleteGmailConnection } from "@/application/use-cases/gmail/CompleteGmailConnection";
+import { DisconnectGmail } from "@/application/use-cases/gmail/DisconnectGmail";
+import { RefreshGmailToken } from "@/application/use-cases/gmail/RefreshGmailToken";
 
+import { GoogleOAuthClient } from "./adapters/oauth/GoogleOAuthClient";
+import { RedisOAuthStateStore } from "./adapters/oauth/RedisOAuthStateStore";
+import { PrismaGmailIntegrationRepository } from "./adapters/prisma/PrismaGmailIntegrationRepository";
 import { PrismaSessionRepository } from "./adapters/prisma/PrismaSessionRepository";
 import { PrismaUserRepository } from "./adapters/prisma/PrismaUserRepository";
 import { BcryptPasswordHasher } from "./adapters/security/BcryptPasswordHasher";
+import { AesGcmTokenEncryption } from "./security/AesGcmTokenEncryption";
 
 const DEFAULT_SESSION_LIFETIME_DAYS = 30;
 
@@ -16,6 +25,10 @@ export interface Container {
   readonly loginUser: LoginUser;
   readonly logoutUser: LogoutUser;
   readonly getCurrentUser: GetCurrentUser;
+  readonly beginGmailConnection: BeginGmailConnection;
+  readonly completeGmailConnection: CompleteGmailConnection;
+  readonly refreshGmailToken: RefreshGmailToken;
+  readonly disconnectGmail: DisconnectGmail;
 }
 
 function readSessionLifetimeDays(): number {
@@ -30,10 +43,36 @@ function readSessionLifetimeDays(): number {
   return parsed;
 }
 
-export function buildContainer(prisma: PrismaClient): Container {
+function readTokenEncryptionKey(): string {
+  const raw = process.env.TOKEN_ENCRYPTION_KEY ?? "";
+  if (!raw) {
+    throw new Error(
+      "TOKEN_ENCRYPTION_KEY no está definida. Genera una con: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\" y añádela al .env. Ver docs/pending-external-setup.md.",
+    );
+  }
+  return raw;
+}
+
+export interface BuildContainerOptions {
+  readonly prisma: PrismaClient;
+  readonly redis: Redis;
+}
+
+export function buildContainer(opts: BuildContainerOptions): Container {
+  const { prisma, redis } = opts;
   const userRepo = new PrismaUserRepository(prisma);
   const sessionRepo = new PrismaSessionRepository(prisma);
+  const gmailIntegrationRepo = new PrismaGmailIntegrationRepository(prisma);
   const hasher = new BcryptPasswordHasher();
+  const tokenEncryption = new AesGcmTokenEncryption(readTokenEncryptionKey());
+  const oauthClient = new GoogleOAuthClient({
+    clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    redirectUri:
+      process.env.GOOGLE_OAUTH_REDIRECT_URI ??
+      "http://localhost:3030/settings/gmail/callback",
+  });
+  const oauthStateStore = new RedisOAuthStateStore(redis);
   const sessionLifetimeDays = readSessionLifetimeDays();
 
   const registerUser = new RegisterUser({ userRepo, hasher });
@@ -50,5 +89,31 @@ export function buildContainer(prisma: PrismaClient): Container {
     clock: () => new Date(),
   });
 
-  return { registerUser, loginUser, logoutUser, getCurrentUser };
+  const beginGmailConnection = new BeginGmailConnection({
+    oauthStateStore,
+    oauthClient,
+  });
+  const completeGmailConnection = new CompleteGmailConnection({
+    oauthStateStore,
+    oauthClient,
+    tokenEncryption,
+    gmailIntegrationRepo,
+  });
+  const refreshGmailToken = new RefreshGmailToken({
+    gmailIntegrationRepo,
+    tokenEncryption,
+    oauthClient,
+  });
+  const disconnectGmail = new DisconnectGmail({ gmailIntegrationRepo });
+
+  return {
+    registerUser,
+    loginUser,
+    logoutUser,
+    getCurrentUser,
+    beginGmailConnection,
+    completeGmailConnection,
+    refreshGmailToken,
+    disconnectGmail,
+  };
 }

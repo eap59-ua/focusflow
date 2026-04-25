@@ -1,5 +1,6 @@
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { Redis } from "ioredis";
 import {
   afterAll,
   beforeAll,
@@ -19,6 +20,7 @@ const SESSION_REGEX = new RegExp(
 );
 
 let prisma: PrismaClient;
+let redis: Redis;
 let container: Container;
 
 beforeAll(() => {
@@ -26,13 +28,19 @@ beforeAll(() => {
   if (!connectionString) {
     throw new Error("DATABASE_URL no está definida (¿.env.test cargado?)");
   }
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    throw new Error("REDIS_URL no está definida (¿.env.test cargado?)");
+  }
   const adapter = new PrismaPg({ connectionString });
   prisma = new PrismaClient({ adapter });
-  container = buildContainer(prisma);
+  redis = new Redis(redisUrl, { maxRetriesPerRequest: null });
+  container = buildContainer({ prisma, redis });
 });
 
 afterAll(async () => {
   await prisma.$disconnect();
+  await redis.quit();
 });
 
 beforeEach(async () => {
