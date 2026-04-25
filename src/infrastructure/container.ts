@@ -8,6 +8,7 @@ import { RegisterUser } from "@/application/use-cases/auth/RegisterUser";
 import { BeginGmailConnection } from "@/application/use-cases/gmail/BeginGmailConnection";
 import { CompleteGmailConnection } from "@/application/use-cases/gmail/CompleteGmailConnection";
 import { DisconnectGmail } from "@/application/use-cases/gmail/DisconnectGmail";
+import { GetGmailStatus } from "@/application/use-cases/gmail/GetGmailStatus";
 import { RefreshGmailToken } from "@/application/use-cases/gmail/RefreshGmailToken";
 
 import { GoogleOAuthClient } from "./adapters/oauth/GoogleOAuthClient";
@@ -29,6 +30,7 @@ export interface Container {
   readonly completeGmailConnection: CompleteGmailConnection;
   readonly refreshGmailToken: RefreshGmailToken;
   readonly disconnectGmail: DisconnectGmail;
+  readonly getGmailStatus: GetGmailStatus;
 }
 
 function readSessionLifetimeDays(): number {
@@ -105,6 +107,7 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     oauthClient,
   });
   const disconnectGmail = new DisconnectGmail({ gmailIntegrationRepo });
+  const getGmailStatus = new GetGmailStatus({ gmailIntegrationRepo });
 
   return {
     registerUser,
@@ -115,5 +118,6 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     completeGmailConnection,
     refreshGmailToken,
     disconnectGmail,
+    getGmailStatus,
   };
 }
