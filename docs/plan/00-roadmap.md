@@ -23,16 +23,15 @@ Estructura del repo (hexagonal), dependencias base, health endpoint, Docker comp
 
 Caso de uso `RegisterUser` atravesando las 4 capas. Password bcrypt, errores tipados, tRPC + página `/register`, integration test contra Postgres real. **Branch:** `feat/01-auth-registro`.
 
-### Paso 2 — Login + sesiones
+### Paso 2 — Login + sesiones ✅
 
-- `LoginUser` use case: email + password → sesión.
-- `LogoutUser`, `GetCurrentUser` (para middleware tRPC).
-- `Session` entity + `PrismaSessionRepository`.
-- Cookie de sesión httpOnly + secure (prod). `/login` y `/logout` en presentación.
-- Middleware tRPC que inyecta `ctx.user` desde cookie.
-- Integration test: login OK, password incorrecto, sesión persiste entre requests, logout invalida.
+- `LoginUser`, `LogoutUser`, `GetCurrentUser` use cases.
+- `Session` entity + `PrismaSessionRepository` + `SessionRepositoryPort`.
+- Cookie httpOnly + `SameSite=Lax` (Secure en prod). Páginas `/login` y `/`.
+- Middleware `requireUser` en context tRPC.
+- 53/53 unit + 6/6 integration + 100% cobertura en domain+application.
 
-**Criterio "hecho":** usuario puede registrarse, loguearse, ver un endpoint protegido (`auth.me`), y hacer logout. Dependencia resuelta para Paso 3.
+**Branch:** `feat/02-login-sesiones`. **Criterio "hecho":** resuelto — el usuario puede registrarse, loguearse, llegar a endpoint protegido y hacer logout end-to-end.
 
 ### Paso 3 — OAuth Gmail + encriptación de tokens
 
