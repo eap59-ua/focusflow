@@ -79,6 +79,7 @@ describe("Worker gmail-inbox-sync (integration con BullMQ + Redis reales)", () =
 
     expect(result.count).toBe(2);
     expect(result.integrationId).toBe("integration-123");
+    expect(result.emails).toHaveLength(2);
     expect(fakeFetchInboxEmails.execute).toHaveBeenCalledWith({
       userId: USER_ID,
       since: undefined,
@@ -138,6 +139,7 @@ describe("Worker gmail-inbox-sync (integration con BullMQ + Redis reales)", () =
 
     expect(result.count).toBe(0);
     expect(result.integrationId).toBe("empty");
+    expect(result.emails).toEqual([]);
 
     await worker.close();
     worker = null;
