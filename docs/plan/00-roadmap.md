@@ -33,18 +33,16 @@ Caso de uso `RegisterUser` atravesando las 4 capas. Password bcrypt, errores tip
 
 **Branch:** `feat/02-login-sesiones`. **Criterio "hecho":** resuelto — el usuario puede registrarse, loguearse, llegar a endpoint protegido y hacer logout end-to-end.
 
-### Paso 3 — OAuth Gmail + encriptación de tokens
+### Paso 3 — OAuth Gmail + encriptación de tokens ✅ (código) / 🛑 (smoke real pendiente)
 
-- Flujo OAuth 2.0 con Google (authorization code + PKCE).
-- `GmailIntegration` entity asociada a `User`.
-- Servicio `TokenEncryption` en `src/infrastructure/security/` (AES-256-GCM, key en env).
-- Refresh token handling.
-- Endpoint `/settings/gmail/connect` → redirect a Google → callback `/settings/gmail/callback` → persistir tokens encriptados.
-- Integration test con fixtures HTTP de Google.
+- Flujo OAuth 2.0 con Google (`google-auth-library`).
+- `GmailIntegration` entity + `EncryptedToken` VO.
+- `AesGcmTokenEncryption` (AES-256-GCM con `node:crypto`).
+- `RedisOAuthStateStore` para CSRF state con TTL.
+- Use cases: `BeginGmailConnection`, `CompleteGmailConnection`, `RefreshGmailToken`, `DisconnectGmail`.
+- 9 commits, 102/102 unit + 13/13 integration verdes, 99.44% cobertura.
 
-**Prerequisito humano:** crear proyecto en Google Cloud Console, habilitar Gmail API, generar Client ID + Client Secret, añadir redirect URI. Sin esto, el plan se bloquea en ejecución.
-
-**Criterio "hecho":** usuario conecta su Gmail y queda persistido. Tokens nunca en claro en DB ni logs.
+**Branch:** `feat/03-oauth-gmail`. **Smoke real pendiente** porque requiere setup de Google Cloud Console (ver `docs/pending-external-setup.md`).
 
 ### Paso 4 — Ingesta de emails (Gmail sync job)
 
@@ -129,7 +127,15 @@ Supuesto: trabajo en paralelo a StudySync, sesiones de 2-4 horas, con Claude Cod
 ## Convención de archivos de plan
 
 - `docs/plan/00-roadmap.md` — este archivo. Se actualiza tras cada fase con desviaciones aprobadas.
-- `docs/plan/NN-nombre.md` — plan detallado por fase. Se escribe justo antes de ejecutar (no pre-escritos en batch).
-- `docs/plan/01-auth-registro.md` — ya commiteado, ejecutado con 11 commits finales sobre el base del Paso 0.
+- `docs/plan/NN-nombre.md` — plan detallado por fase.
+
+**Excepción al patrón "uno-a-uno"**: tras el Paso 3 se escribieron de golpe los planes 04, 05, 06, 07 porque el desarrollador entró en modo time-constrained y necesita Claude Code trabajando en autónomo. Cada plan incluye un aviso explícito de "escrito predictivamente, parar y reportar si el repo real contradice asunciones". Esto es trade-off consciente — la alternativa era pausar el proyecto hasta que el desarrollador volviese.
 
 Los planes son artefactos vivos: al terminar una fase, se anota un bloque `## Desviaciones del plan` al final del archivo correspondiente, con cada desviación aprobada durante la ejecución.
+
+## Estado actual
+
+- **Paso 0-2:** ✅ mergeados en main.
+- **Paso 3:** código ✅ en `feat/03-oauth-gmail`, smoke real pendiente, esperando push y merge del developer.
+- **Pasos 4-7:** planes escritos, en cola para ejecución autónoma. Branch chain prevista: `feat/04-ingesta-gmail` desde `feat/03-oauth-gmail`, `feat/05-briefing-openai` desde 04, etc.
+- **Paso 8:** plan no escrito, depende de decisiones de hosting que se toman cerca del momento.

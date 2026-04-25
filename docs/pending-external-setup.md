@@ -180,6 +180,74 @@ Decisión a tomar en Paso 8 según si el MVP se abre a más usuarios.
 
 ---
 
+## Cuando vuelvas de tu otro proyecto — orden de tareas pendientes
+
+Este es el orden recomendado cuando regreses con tiempo. La idea es despachar todos los pendientes en una sola sesión de ~2 horas en vez de fragmentar.
+
+### Bloque 1 — Despachar lo que bloquea Paso 3 (~30 min)
+
+1. **Google Cloud Console**: seguir los pasos de la sección "Paso 3 — OAuth Gmail" arriba.
+2. **`.env`**: rellenar `GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`.
+3. **Smoke real Paso 3**: los 10 pasos. ~30 s si todo está bien.
+
+### Bloque 2 — Mergear el trabajo autónomo de Claude Code (~15 min)
+
+Si dejaste a Claude Code trabajando los Pasos 4-7 mientras estabas con el otro proyecto, ahora hay 4 ramas locales encadenadas. Se mergean **en orden estricto**:
+
+```powershell
+cd "C:\Users\erard\Documents\Mis Informes\ProyectosPersonales\focusflow"
+
+# 1. Push de cada rama (si no se hicieron antes)
+git push -u origin feat/04-ingesta-gmail
+git push -u origin feat/05-briefing-openai
+git push -u origin feat/06-envio-email
+git push -u origin feat/07-scheduling-cron
+
+# 2. En GitHub: abrir 4 PRs, cada uno con base la rama anterior
+# (no contra main directamente — eso confunde la review)
+#   PR #4: feat/04-ingesta-gmail   ← base: feat/03-oauth-gmail
+#   PR #5: feat/05-briefing-openai ← base: feat/04-ingesta-gmail
+#   PR #6: feat/06-envio-email     ← base: feat/05-briefing-openai
+#   PR #7: feat/07-scheduling-cron ← base: feat/06-envio-email
+
+# 3. Mergear PR del Paso 3 primero (a main).
+# 4. Cambiar la base de PR#4 a main (GitHub lo hace automáticamente al mergear PR#3 si está bien stacked).
+# 5. Mergear PR#4 (a main).
+# 6. Repetir 4-5 hasta PR#7.
+```
+
+**Recomendación de tipo de merge**: "Create a merge commit" (no squash). Preserva los SHAs de los commits atómicos que tan limpios quedaron, lo que hace el `git log --oneline` del proyecto léase como un libro.
+
+Si las ramas se han desincronizado de main (por algún hotfix mientras estuviste fuera), Claude Code puede hacer `git rebase main` rama por rama antes del push. Si hay conflictos, parar y reportar.
+
+### Bloque 3 — Si Claude Code se bloqueó en alguna fase
+
+Si al volver ves que Claude Code se paró a mitad de Paso 5 (por ejemplo) por una contradicción, todas las ramas posteriores quedan sin escribir. En ese caso:
+
+1. Lee el último mensaje de Claude Code para entender el bloqueo.
+2. Pégame ese mensaje en el chat de Cowork — yo te dejo el parche al plan correspondiente o te ajusto el siguiente.
+3. Re-arranca Claude Code con el plan actualizado.
+
+### Bloque 4 — Setup OpenAI + Mailpit + smoke pasos 5/6 (~20 min)
+
+1. **OpenAI key**: ver sección "Paso 5 — Generación con OpenAI". Set límite de gasto.
+2. **`.env`**: rellenar `OPENAI_API_KEY`.
+3. **Mailpit**: `docker compose up -d mailpit`. Visitar `http://localhost:8025` para confirmar que arranca.
+4. **Smoke Paso 5**: con un Briefing en DB y `OPENAI_API_KEY` real, ejecutar el job manualmente y ver el summary generado.
+5. **Smoke Paso 6**: tras Paso 5, el `SendBriefingEmail` job debería entregar a Mailpit. Verificar email visible en `http://localhost:8025`.
+
+### Bloque 5 — Smoke E2E (~10 min)
+
+Con todo lo anterior:
+
+1. `pnpm dev` — Next + worker corriendo.
+2. Crea cuenta nueva, conecta Gmail, espera al cron OR click "Generar uno ahora" en `/settings`.
+3. Email aparece en Mailpit en ~30-90s.
+
+Si esto pasa: **el MVP funciona end-to-end**. Solo queda Paso 8 (deploy + hardening), cuyo plan se escribe entonces.
+
+---
+
 ## Resumen de variables en `.env`
 
 Estado actual del `.env` local (no commiteado):
