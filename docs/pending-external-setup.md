@@ -77,13 +77,13 @@ Cuando los 9 commits estén hechos y `.env` tenga las 4 variables:
 8. Verificar tokens cifrados en DB (psql / DBeaver):
    ```sql
    SELECT
-     "googleAccountEmail",
-     LEFT("accessTokenEncrypted", 20) AS access_first20,
-     LENGTH("accessTokenEncrypted")    AS access_len,
-     "tokenExpiresAt"
+     google_account_email,
+     LEFT(access_token_encrypted, 20) AS access_first20,
+     LENGTH(access_token_encrypted)    AS access_len,
+     token_expires_at
    FROM gmail_integrations;
    ```
-   `access_first20` debe ser base64 random (NO empezar por `ya29.` ni `Bearer`); `access_len` >100.
+   `access_first20` debe ser base64 random (NO empezar por `ya29.` ni `Bearer`); `access_len` >100. (Convención snake_case heredada de los modelos `users` y `sessions` con `@map`.)
 9. Click "Desconectar" → flash de éxito, row desaparece.
 10. Repetir paso 3: debe poder reconectar (`prompt: 'consent'` garantiza consent fresco).
 
