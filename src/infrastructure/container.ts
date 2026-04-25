@@ -6,6 +6,7 @@ import { LoginUser } from "@/application/use-cases/auth/LoginUser";
 import { LogoutUser } from "@/application/use-cases/auth/LogoutUser";
 import { RegisterUser } from "@/application/use-cases/auth/RegisterUser";
 import { GenerateBriefing } from "@/application/use-cases/briefing/GenerateBriefing";
+import { SendBriefingEmail } from "@/application/use-cases/briefing/SendBriefingEmail";
 import { FetchInboxEmails } from "@/application/use-cases/email/FetchInboxEmails";
 import { BeginGmailConnection } from "@/application/use-cases/gmail/BeginGmailConnection";
 import { CompleteGmailConnection } from "@/application/use-cases/gmail/CompleteGmailConnection";
@@ -13,6 +14,7 @@ import { DisconnectGmail } from "@/application/use-cases/gmail/DisconnectGmail";
 import { GetGmailStatus } from "@/application/use-cases/gmail/GetGmailStatus";
 import { RefreshGmailToken } from "@/application/use-cases/gmail/RefreshGmailToken";
 
+import { NodemailerEmailSender } from "./adapters/email/NodemailerEmailSender";
 import { GmailEmailFetcher } from "./adapters/gmail/GmailEmailFetcher";
 import { GoogleOAuthClient } from "./adapters/oauth/GoogleOAuthClient";
 import { OpenAIBriefingGenerator } from "./adapters/openai/OpenAIBriefingGenerator";
@@ -22,6 +24,7 @@ import { PrismaGmailIntegrationRepository } from "./adapters/prisma/PrismaGmailI
 import { PrismaSessionRepository } from "./adapters/prisma/PrismaSessionRepository";
 import { PrismaUserRepository } from "./adapters/prisma/PrismaUserRepository";
 import { BcryptPasswordHasher } from "./adapters/security/BcryptPasswordHasher";
+import { HtmlBriefingEmailRenderer } from "./email/HtmlBriefingEmailRenderer";
 import { MORNING_BRIEFING_PROMPT_VERSION } from "./openai/prompts/morning-briefing";
 import { AesGcmTokenEncryption } from "./security/AesGcmTokenEncryption";
 
@@ -30,6 +33,10 @@ const DEFAULT_GMAIL_FETCH_QUERY = "in:inbox newer_than:1d";
 const DEFAULT_GMAIL_FETCH_MAX_MESSAGES = 50;
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 const DEFAULT_OPENAI_MAX_INPUT_TOKENS = 8000;
+const DEFAULT_SMTP_HOST = "localhost";
+const DEFAULT_SMTP_PORT = 1025;
+const DEFAULT_EMAIL_FROM_ADDRESS = "focusflow@local.dev";
+const DEFAULT_EMAIL_FROM_NAME = "FocusFlow";
 
 export interface Container {
   readonly registerUser: RegisterUser;
@@ -43,6 +50,7 @@ export interface Container {
   readonly getGmailStatus: GetGmailStatus;
   readonly fetchInboxEmails: FetchInboxEmails;
   readonly generateBriefing: GenerateBriefing;
+  readonly sendBriefingEmail: SendBriefingEmail;
 }
 
 function readSessionLifetimeDays(): number {
@@ -86,6 +94,18 @@ function readOpenAIMaxInputTokens(): number {
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(
       `OPENAI_MAX_INPUT_TOKENS inválido: "${raw}". Debe ser un número positivo.`,
+    );
+  }
+  return Math.floor(parsed);
+}
+
+function readSmtpPort(): number {
+  const raw = process.env.SMTP_PORT;
+  if (!raw) return DEFAULT_SMTP_PORT;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(
+      `SMTP_PORT inválido: "${raw}". Debe ser un número positivo.`,
     );
   }
   return Math.floor(parsed);
@@ -167,6 +187,25 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     maxInputTokens: readOpenAIMaxInputTokens(),
   });
 
+  const emailSender = new NodemailerEmailSender({
+    host: process.env.SMTP_HOST ?? DEFAULT_SMTP_HOST,
+    port: readSmtpPort(),
+    secure: process.env.SMTP_SECURE === "true",
+    user: process.env.SMTP_USER || undefined,
+    pass: process.env.SMTP_PASS || undefined,
+  });
+  const briefingEmailRenderer = new HtmlBriefingEmailRenderer();
+  const sendBriefingEmail = new SendBriefingEmail({
+    briefingRepo,
+    userRepo,
+    renderer: briefingEmailRenderer,
+    emailSender,
+    fromAddress: {
+      email: process.env.EMAIL_FROM_ADDRESS ?? DEFAULT_EMAIL_FROM_ADDRESS,
+      name: process.env.EMAIL_FROM_NAME ?? DEFAULT_EMAIL_FROM_NAME,
+    },
+  });
+
   return {
     registerUser,
     loginUser,
@@ -179,5 +218,6 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     getGmailStatus,
     fetchInboxEmails,
     generateBriefing,
+    sendBriefingEmail,
   };
 }
