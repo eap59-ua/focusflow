@@ -19,6 +19,7 @@ model User {
   updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   sessions         Session[]
   gmailIntegration GmailIntegration?
+  briefings        Briefing[]
 
   @@map("users")
 }
@@ -48,4 +49,21 @@ model GmailIntegration {
   lastRefreshedAt       DateTime @default(now()) @map("last_refreshed_at") @db.Timestamptz(6)
 
   @@map("gmail_integrations")
+}
+
+model Briefing {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  summary          String   @db.Text
+  emailsConsidered Int      @map("emails_considered")
+  emailsTruncated  Int      @map("emails_truncated")
+  tokensUsedInput  Int      @map("tokens_used_input")
+  tokensUsedOutput Int      @map("tokens_used_output")
+  modelUsed        String   @map("model_used")
+  promptVersion    String   @map("prompt_version")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("briefings")
 }
