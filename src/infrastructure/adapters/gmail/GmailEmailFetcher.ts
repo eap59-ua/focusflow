@@ -12,6 +12,42 @@ import { EmailMessage } from "@/domain/email-message/EmailMessage";
 
 const FETCH_CONCURRENCY = 5;
 
+export interface GmailMessagesClient {
+  list(params: {
+    userId: string;
+    q?: string;
+    maxResults?: number;
+  }): Promise<{ data: gmail_v1.Schema$ListMessagesResponse }>;
+  get(params: {
+    userId: string;
+    id: string;
+    format: "full";
+  }): Promise<{ data: gmail_v1.Schema$Message }>;
+}
+
+export type GmailMessagesClientFactory = (
+  accessToken: string,
+) => GmailMessagesClient;
+
+function defaultClientFactory(accessToken: string): GmailMessagesClient {
+  const oauth = new gmailAuth.OAuth2();
+  oauth.setCredentials({ access_token: accessToken });
+  const gmail = gmailApi({
+    version: "v1",
+    auth: oauth,
+    retry: true,
+    retryConfig: {
+      retry: 3,
+      retryDelay: 1000,
+      statusCodesToRetry: [
+        [429, 429],
+        [500, 599],
+      ],
+    },
+  });
+  return gmail.users.messages as unknown as GmailMessagesClient;
+}
+
 interface ParsedFrom {
   readonly email: string;
   readonly name: string | null;
@@ -92,7 +128,7 @@ function readHeader(
   return found?.value ?? "";
 }
 
-function parseGmailMessage(msg: gmail_v1.Schema$Message): EmailMessage {
+export function parseGmailMessage(msg: gmail_v1.Schema$Message): EmailMessage {
   const id = msg.id ?? "";
   const threadId = msg.threadId ?? "";
   const snippet = msg.snippet ?? "";
@@ -149,24 +185,16 @@ async function pMapWithConcurrency<T, R>(
 }
 
 export class GmailEmailFetcher implements EmailFetcherPort {
-  async fetchInbox(params: FetchInboxParams): Promise<readonly EmailMessage[]> {
-    const oauth = new gmailAuth.OAuth2();
-    oauth.setCredentials({ access_token: params.accessToken });
-    const gmail = gmailApi({
-      version: "v1",
-      auth: oauth,
-      retry: true,
-      retryConfig: {
-        retry: 3,
-        retryDelay: 1000,
-        statusCodesToRetry: [
-          [429, 429],
-          [500, 599],
-        ],
-      },
-    });
+  private readonly clientFactory: GmailMessagesClientFactory;
 
-    const list = await gmail.users.messages.list({
+  constructor(clientFactory?: GmailMessagesClientFactory) {
+    this.clientFactory = clientFactory ?? defaultClientFactory;
+  }
+
+  async fetchInbox(params: FetchInboxParams): Promise<readonly EmailMessage[]> {
+    const client = this.clientFactory(params.accessToken);
+
+    const list = await client.list({
       userId: "me",
       q: params.query,
       maxResults: params.maxResults,
@@ -174,12 +202,14 @@ export class GmailEmailFetcher implements EmailFetcherPort {
 
     const ids = (list.data.messages ?? [])
       .map((m) => m.id)
-      .filter((id): id is string => typeof id === "string" && id.length > 0);
+      .filter(
+        (id): id is string => typeof id === "string" && id.length > 0,
+      );
 
     if (ids.length === 0) return [];
 
     const messages = await pMapWithConcurrency(ids, FETCH_CONCURRENCY, (id) =>
-      gmail.users.messages.get({ userId: "me", id, format: "full" }),
+      client.get({ userId: "me", id, format: "full" }),
     );
 
     return messages.map((res) => parseGmailMessage(res.data));
