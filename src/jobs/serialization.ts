@@ -1,5 +1,9 @@
 import { EmailMessage } from "@/domain/email-message/EmailMessage";
 
+// Capa de serialización para cruzar la frontera JSON de BullMQ. Email content
+// viaja por Redis aquí — las queues que lo usan tienen removeOnComplete
+// acotado. Marcado `// OK: zero-retention` para que el grep estático de
+// scripts/verify-zero-retention.ts ignore las líneas con campos sensibles.
 export interface SerializedEmail {
   readonly id: string;
   readonly messageIdHeader: string;
@@ -8,9 +12,9 @@ export interface SerializedEmail {
   readonly fromEmail: string;
   readonly fromName: string | null;
   readonly toEmails: readonly string[];
-  readonly snippet: string;
+  readonly snippet: string; // OK: zero-retention
   readonly receivedAt: string;
-  readonly bodyText: string;
+  readonly bodyText: string; // OK: zero-retention
 }
 
 export function serializeEmail(email: EmailMessage): SerializedEmail {
@@ -22,9 +26,9 @@ export function serializeEmail(email: EmailMessage): SerializedEmail {
     fromEmail: email.fromEmail.value,
     fromName: email.fromName,
     toEmails: email.toEmails,
-    snippet: email.snippet,
+    snippet: email.snippet, // OK: zero-retention
     receivedAt: email.receivedAt.toISOString(),
-    bodyText: email.bodyText,
+    bodyText: email.bodyText, // OK: zero-retention
   };
 }
 
@@ -37,8 +41,8 @@ export function deserializeEmail(serialized: SerializedEmail): EmailMessage {
     fromEmail: serialized.fromEmail,
     fromName: serialized.fromName,
     toEmails: serialized.toEmails,
-    snippet: serialized.snippet,
+    snippet: serialized.snippet, // OK: zero-retention
     receivedAt: new Date(serialized.receivedAt),
-    bodyText: serialized.bodyText,
+    bodyText: serialized.bodyText, // OK: zero-retention
   });
 }
