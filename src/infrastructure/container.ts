@@ -151,18 +151,34 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     oauthStateStore,
     oauthClient,
   });
+  // Scheduler temporal: NoOp en commit 4. Se reemplaza por
+  // BullMQBriefingScheduler real en commit 5.
+  const briefingScheduler: import("@/application/ports/BriefingSchedulerPort").BriefingSchedulerPort =
+    {
+      scheduleForUser: async () => undefined,
+      unscheduleForUser: async () => undefined,
+      triggerNow: async () => ({ flowId: "noop" }),
+    };
   const completeGmailConnection = new CompleteGmailConnection({
     oauthStateStore,
     oauthClient,
     tokenEncryption,
     gmailIntegrationRepo,
+    userRepo,
+    scheduler: briefingScheduler,
+    defaultBriefingHour: 8,
+    defaultBriefingTimezone: "Europe/Madrid",
   });
   const refreshGmailToken = new RefreshGmailToken({
     gmailIntegrationRepo,
     tokenEncryption,
     oauthClient,
   });
-  const disconnectGmail = new DisconnectGmail({ gmailIntegrationRepo });
+  const disconnectGmail = new DisconnectGmail({
+    gmailIntegrationRepo,
+    userRepo,
+    scheduler: briefingScheduler,
+  });
   const getGmailStatus = new GetGmailStatus({ gmailIntegrationRepo });
 
   const emailFetcher = new GmailEmailFetcher();

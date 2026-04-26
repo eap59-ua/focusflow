@@ -119,12 +119,22 @@ function makeBegin() {
   });
 }
 
+const noopScheduler = {
+  scheduleForUser: async () => undefined,
+  unscheduleForUser: async () => undefined,
+  triggerNow: async () => ({ flowId: "noop" }),
+};
+
 function makeComplete() {
   return new CompleteGmailConnection({
     oauthStateStore: stateStore,
     oauthClient,
     tokenEncryption: encryption,
     gmailIntegrationRepo: gmailRepo,
+    userRepo,
+    scheduler: noopScheduler,
+    defaultBriefingHour: 8,
+    defaultBriefingTimezone: "Europe/Madrid",
   });
 }
 
@@ -137,7 +147,11 @@ function makeRefresh() {
 }
 
 function makeDisconnect() {
-  return new DisconnectGmail({ gmailIntegrationRepo: gmailRepo });
+  return new DisconnectGmail({
+    gmailIntegrationRepo: gmailRepo,
+    userRepo,
+    scheduler: noopScheduler,
+  });
 }
 
 function fakeExchangePayload(): OAuthExchangeResult {
