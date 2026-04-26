@@ -41,9 +41,7 @@
     "bullmq": "^5.76.1",
     "cookie": "^1.1.1",
     "google-auth-library": "^9.15.1",
-    "googleapis": "^171.4.0",
     "ioredis": "^5.10.1",
-    "jose": "^6.2.2",
     "next": "^15.5.15",
     "nodemailer": "^6.10.1",
     "openai": "^4.104.0",
@@ -75,5 +73,12 @@
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "openai>zod": "4"
+      }
+    }
   }
 }
