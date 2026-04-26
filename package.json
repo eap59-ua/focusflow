@@ -11,7 +11,8 @@
   },
   "scripts": {
     "dev": "concurrently -n next,workers -c cyan,magenta \"next dev\" \"pnpm workers:dev\"",
-    "workers:dev": "echo \"[workers] placeholder: aún no hay jobs BullMQ. Se arrancará tsx watch sobre src/jobs cuando existan.\"",
+    "workers:dev": "tsx watch src/workers/start.ts",
+    "worker:start": "tsx src/workers/start.ts",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",

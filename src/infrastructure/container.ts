@@ -13,6 +13,9 @@ import { CompleteGmailConnection } from "@/application/use-cases/gmail/CompleteG
 import { DisconnectGmail } from "@/application/use-cases/gmail/DisconnectGmail";
 import { GetGmailStatus } from "@/application/use-cases/gmail/GetGmailStatus";
 import { RefreshGmailToken } from "@/application/use-cases/gmail/RefreshGmailToken";
+import { ScheduleAllActiveBriefings } from "@/application/use-cases/scheduling/ScheduleAllActiveBriefings";
+import { TriggerBriefingForUser } from "@/application/use-cases/scheduling/TriggerBriefingForUser";
+import { UpdateBriefingPreferences } from "@/application/use-cases/scheduling/UpdateBriefingPreferences";
 
 import { buildBriefingTriggerQueue } from "@/jobs/queues";
 
@@ -54,6 +57,9 @@ export interface Container {
   readonly fetchInboxEmails: FetchInboxEmails;
   readonly generateBriefing: GenerateBriefing;
   readonly sendBriefingEmail: SendBriefingEmail;
+  readonly updateBriefingPreferences: UpdateBriefingPreferences;
+  readonly scheduleAllActiveBriefings: ScheduleAllActiveBriefings;
+  readonly triggerBriefingForUser: TriggerBriefingForUser;
 }
 
 function readSessionLifetimeDays(): number {
@@ -222,6 +228,19 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     },
   });
 
+  const updateBriefingPreferences = new UpdateBriefingPreferences({
+    userRepo,
+    scheduler: briefingScheduler,
+  });
+  const scheduleAllActiveBriefings = new ScheduleAllActiveBriefings({
+    userRepo,
+    scheduler: briefingScheduler,
+  });
+  const triggerBriefingForUser = new TriggerBriefingForUser({
+    userRepo,
+    scheduler: briefingScheduler,
+  });
+
   return {
     registerUser,
     loginUser,
@@ -235,5 +254,8 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     fetchInboxEmails,
     generateBriefing,
     sendBriefingEmail,
+    updateBriefingPreferences,
+    scheduleAllActiveBriefings,
+    triggerBriefingForUser,
   };
 }
