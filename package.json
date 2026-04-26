@@ -10,7 +10,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "concurrently -n next,workers -c cyan,magenta \"next dev\" \"pnpm workers:dev\"",
+    "dev": "concurrently -n next,workers -c cyan,magenta \"next dev -p 3030\" \"pnpm workers:dev\"",
     "workers:dev": "tsx watch src/workers/start.ts",
     "worker:start": "tsx src/workers/start.ts",
     "build": "next build",
