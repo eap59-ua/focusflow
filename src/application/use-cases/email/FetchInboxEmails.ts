@@ -1,5 +1,6 @@
 import type { EmailFetcherPort } from "@/application/ports/EmailFetcherPort";
 import type { GmailIntegrationRepositoryPort } from "@/application/ports/GmailIntegrationRepositoryPort";
+import type { LoggerPort } from "@/application/ports/LoggerPort";
 import type { TokenEncryptionPort } from "@/application/ports/TokenEncryptionPort";
 import type { RefreshGmailToken } from "@/application/use-cases/gmail/RefreshGmailToken";
 import type { EmailMessage } from "@/domain/email-message/EmailMessage";
@@ -17,6 +18,7 @@ export interface FetchInboxEmailsDependencies {
   readonly clock?: () => Date;
   readonly defaultQuery?: string;
   readonly maxResults?: number;
+  readonly logger?: LoggerPort;
 }
 
 export interface FetchInboxEmailsInput {
@@ -80,6 +82,14 @@ export class FetchInboxEmails {
         deduped.push(email);
       }
     }
+
+    this.deps.logger?.info({
+      event: "gmail_inbox_fetched",
+      userId: input.userId,
+      integrationId: integration.id,
+      count: deduped.length,
+      duplicatesDropped: fetched.length - deduped.length,
+    });
 
     return { emails: deduped, integrationId: integration.id };
   }

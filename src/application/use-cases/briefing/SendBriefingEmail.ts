@@ -4,6 +4,7 @@ import type {
   EmailAddress,
   EmailSenderPort,
 } from "@/application/ports/EmailSenderPort";
+import type { LoggerPort } from "@/application/ports/LoggerPort";
 import type { UserRepositoryPort } from "@/application/ports/UserRepositoryPort";
 import { EmailDelivery } from "@/domain/briefing/EmailDelivery";
 import { BriefingNotFoundError } from "@/domain/briefing/errors/BriefingNotFoundError";
@@ -15,6 +16,7 @@ export interface SendBriefingEmailDependencies {
   readonly renderer: BriefingEmailRendererPort;
   readonly emailSender: EmailSenderPort;
   readonly fromAddress: EmailAddress;
+  readonly logger?: LoggerPort;
 }
 
 export interface SendBriefingEmailInput {
@@ -45,11 +47,21 @@ export class SendBriefingEmail {
       text: rendered.text,
     });
 
-    return EmailDelivery.create({
+    const delivery = EmailDelivery.create({
       briefingId: briefing.id,
       recipientEmail: user.email.value,
       sentAt: new Date(),
       messageId: result.messageId,
     });
+
+    this.deps.logger?.info({
+      event: "briefing_email_sent",
+      userId: user.id,
+      briefingId: briefing.id,
+      recipientDomain: user.email.value.split("@")[1] ?? "",
+      messageIdPrefix: result.messageId.slice(0, 16),
+    });
+
+    return delivery;
   }
 }

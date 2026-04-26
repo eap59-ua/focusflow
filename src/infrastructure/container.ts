@@ -30,6 +30,7 @@ import { PrismaSessionRepository } from "./adapters/prisma/PrismaSessionReposito
 import { PrismaUserRepository } from "./adapters/prisma/PrismaUserRepository";
 import { BcryptPasswordHasher } from "./adapters/security/BcryptPasswordHasher";
 import { HtmlBriefingEmailRenderer } from "./email/HtmlBriefingEmailRenderer";
+import { ConsoleLogger } from "./logging/ConsoleLogger";
 import { MORNING_BRIEFING_PROMPT_VERSION } from "./openai/prompts/morning-briefing";
 import { BullMQBriefingScheduler } from "./scheduling/BullMQBriefingScheduler";
 import { AesGcmTokenEncryption } from "./security/AesGcmTokenEncryption";
@@ -127,6 +128,7 @@ export interface BuildContainerOptions {
 
 export function buildContainer(opts: BuildContainerOptions): Container {
   const { prisma, redis } = opts;
+  const logger = new ConsoleLogger();
   const userRepo = new PrismaUserRepository(prisma);
   const sessionRepo = new PrismaSessionRepository(prisma);
   const gmailIntegrationRepo = new PrismaGmailIntegrationRepository(prisma);
@@ -195,6 +197,7 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     refreshGmailToken,
     defaultQuery: process.env.GMAIL_FETCH_QUERY ?? DEFAULT_GMAIL_FETCH_QUERY,
     maxResults: readGmailFetchMaxMessages(),
+    logger,
   });
 
   const briefingRepo = new PrismaBriefingRepository(prisma);
@@ -207,6 +210,7 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     briefingRepo,
     promptVersion: MORNING_BRIEFING_PROMPT_VERSION,
     maxInputTokens: readOpenAIMaxInputTokens(),
+    logger,
   });
 
   const emailSender = new NodemailerEmailSender({
@@ -226,6 +230,7 @@ export function buildContainer(opts: BuildContainerOptions): Container {
       email: process.env.EMAIL_FROM_ADDRESS ?? DEFAULT_EMAIL_FROM_ADDRESS,
       name: process.env.EMAIL_FROM_NAME ?? DEFAULT_EMAIL_FROM_NAME,
     },
+    logger,
   });
 
   const updateBriefingPreferences = new UpdateBriefingPreferences({
@@ -239,6 +244,7 @@ export function buildContainer(opts: BuildContainerOptions): Container {
   const triggerBriefingForUser = new TriggerBriefingForUser({
     userRepo,
     scheduler: briefingScheduler,
+    logger,
   });
 
   return {

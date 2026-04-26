@@ -1,5 +1,6 @@
 import type { BriefingGeneratorPort } from "@/application/ports/BriefingGeneratorPort";
 import type { BriefingRepositoryPort } from "@/application/ports/BriefingRepositoryPort";
+import type { LoggerPort } from "@/application/ports/LoggerPort";
 import { Briefing } from "@/domain/briefing/Briefing";
 import type { EmailMessage } from "@/domain/email-message/EmailMessage";
 
@@ -14,6 +15,7 @@ export interface GenerateBriefingDependencies {
   readonly briefingRepo: BriefingRepositoryPort;
   readonly promptVersion: string;
   readonly maxInputTokens?: number;
+  readonly logger?: LoggerPort;
 }
 
 export interface GenerateBriefingInput {
@@ -49,6 +51,18 @@ export class GenerateBriefing {
         promptVersion: this.deps.promptVersion,
       });
       await this.deps.briefingRepo.save(empty);
+      this.deps.logger?.info({
+        event: "briefing_generated",
+        userId: input.userId,
+        briefingId: empty.id,
+        emailsConsidered: 0,
+        emailsTruncated: 0,
+        tokensUsedInput: 0,
+        tokensUsedOutput: 0,
+        modelUsed: EMPTY_INBOX_MODEL,
+        promptVersion: this.deps.promptVersion,
+        placeholder: true,
+      });
       return { briefingId: empty.id };
     }
 
@@ -81,6 +95,19 @@ export class GenerateBriefing {
       promptVersion: this.deps.promptVersion,
     });
     await this.deps.briefingRepo.save(briefing);
+
+    this.deps.logger?.info({
+      event: "briefing_generated",
+      userId: input.userId,
+      briefingId: briefing.id,
+      emailsConsidered: considered.length,
+      emailsTruncated: truncatedCount,
+      tokensUsedInput: generated.tokensUsedInput,
+      tokensUsedOutput: generated.tokensUsedOutput,
+      modelUsed: generated.modelUsed,
+      promptVersion: this.deps.promptVersion,
+      placeholder: false,
+    });
 
     return { briefingId: briefing.id };
   }
