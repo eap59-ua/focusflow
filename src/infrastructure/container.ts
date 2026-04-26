@@ -14,6 +14,8 @@ import { DisconnectGmail } from "@/application/use-cases/gmail/DisconnectGmail";
 import { GetGmailStatus } from "@/application/use-cases/gmail/GetGmailStatus";
 import { RefreshGmailToken } from "@/application/use-cases/gmail/RefreshGmailToken";
 
+import { buildBriefingTriggerQueue } from "@/jobs/queues";
+
 import { NodemailerEmailSender } from "./adapters/email/NodemailerEmailSender";
 import { GmailEmailFetcher } from "./adapters/gmail/GmailEmailFetcher";
 import { GoogleOAuthClient } from "./adapters/oauth/GoogleOAuthClient";
@@ -26,6 +28,7 @@ import { PrismaUserRepository } from "./adapters/prisma/PrismaUserRepository";
 import { BcryptPasswordHasher } from "./adapters/security/BcryptPasswordHasher";
 import { HtmlBriefingEmailRenderer } from "./email/HtmlBriefingEmailRenderer";
 import { MORNING_BRIEFING_PROMPT_VERSION } from "./openai/prompts/morning-briefing";
+import { BullMQBriefingScheduler } from "./scheduling/BullMQBriefingScheduler";
 import { AesGcmTokenEncryption } from "./security/AesGcmTokenEncryption";
 
 const DEFAULT_SESSION_LIFETIME_DAYS = 30;
@@ -151,14 +154,11 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     oauthStateStore,
     oauthClient,
   });
-  // Scheduler temporal: NoOp en commit 4. Se reemplaza por
-  // BullMQBriefingScheduler real en commit 5.
-  const briefingScheduler: import("@/application/ports/BriefingSchedulerPort").BriefingSchedulerPort =
-    {
-      scheduleForUser: async () => undefined,
-      unscheduleForUser: async () => undefined,
-      triggerNow: async () => ({ flowId: "noop" }),
-    };
+  const briefingTriggerQueue = buildBriefingTriggerQueue(redis);
+  const briefingScheduler = new BullMQBriefingScheduler({
+    briefingTriggerQueue,
+    connection: redis,
+  });
   const completeGmailConnection = new CompleteGmailConnection({
     oauthStateStore,
     oauthClient,
