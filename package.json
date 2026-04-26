@@ -26,6 +26,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:generate": "prisma generate",
     "verify:zero-retention": "tsx scripts/verify-zero-retention.ts",
+    "smoke:fakes": "tsx scripts/smoke-with-fakes.ts",
     "format": "prettier --write ."
   },
   "dependencies": {
