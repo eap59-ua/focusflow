@@ -192,4 +192,19 @@ describe("FetchInboxEmails use case", () => {
       `in:inbox after:${Math.floor(since.getTime() / 1000)}`,
     );
   });
+
+  // T8 (audit): rama "refresh OK pero la integración desapareció después" —
+  // anteriormente uncovered (línea 57 del use case).
+  it("integración desaparece tras refresh: GmailIntegrationNotFoundError, sin fetch", async () => {
+    const { useCase, deps } = makeUseCase({
+      integrationByUserId: async () => makeIntegration({ expired: true }),
+      refreshedIntegration: async () => null,
+    });
+
+    await expect(useCase.execute({ userId: USER_ID })).rejects.toBeInstanceOf(
+      GmailIntegrationNotFoundError,
+    );
+    expect(deps.refreshExecute).toHaveBeenCalled();
+    expect(deps.fetchInbox).not.toHaveBeenCalled();
+  });
 });

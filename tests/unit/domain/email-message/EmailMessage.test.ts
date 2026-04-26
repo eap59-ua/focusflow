@@ -92,4 +92,23 @@ describe("EmailMessage value object", () => {
       EmailMessage.create(validInput({ receivedAt: slightlyFuture })),
     ).not.toThrow();
   });
+
+  // T3 (audit): boundary exacta del MAX_FUTURE_SKEW_MS = 60000.
+  // El check es estricto: > now + 60000 lanza. Construimos un Date cuya
+  // distancia al "now" del check supere claramente 60s para evitar flaky.
+  it("rechaza receivedAt con > 60s de skew (61 segundos exactos)", () => {
+    const future = new Date(Date.now() + 61 * 1000);
+    expect(() =>
+      EmailMessage.create(validInput({ receivedAt: future })),
+    ).toThrow(InvalidEmailMessageError);
+  });
+
+  it("acepta receivedAt en el límite exacto (<=60s)", () => {
+    // Pequeño margen ≈ 1ms para evitar flaky por la diferencia entre
+    // Date.now() del test y Date.now() dentro del use case.
+    const atLimit = new Date(Date.now() + 59 * 1000);
+    expect(() =>
+      EmailMessage.create(validInput({ receivedAt: atLimit })),
+    ).not.toThrow();
+  });
 });

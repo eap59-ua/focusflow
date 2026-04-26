@@ -38,6 +38,17 @@ describe("EncryptedToken VO", () => {
     );
   });
 
+  // T13 (audit): cubrir línea uncovered del regex base64 — input con
+  // longitud múltiplo de 4 pero caracteres fuera del alfabeto.
+  it("rechaza longitud múltiplo de 4 pero con caracteres ilegales (cubre regex)", () => {
+    expect(() => EncryptedToken.fromBase64("ab!@")).toThrow(
+      InvalidEncryptedTokenError,
+    );
+    expect(() => EncryptedToken.fromBase64("ABCD!@#$")).toThrow(
+      InvalidEncryptedTokenError,
+    );
+  });
+
   it("equals compara por contenido", () => {
     const a = EncryptedToken.fromBase64(Buffer.from("x").toString("base64"));
     const b = EncryptedToken.fromBase64(Buffer.from("x").toString("base64"));

@@ -99,6 +99,27 @@ describe("Briefing entity", () => {
       expect(briefing.emailsConsidered).toBe(0);
       expect(briefing.tokensUsedInput).toBe(0);
     });
+
+    // T1 (audit): boundary exacta del MIN_SUMMARY_LENGTH = 50.
+    it("rechaza summary de exactamente 49 chars (frontera inferior excluyente)", () => {
+      const summary49 = "x".repeat(49);
+      expect(() => Briefing.create(validInput({ summary: summary49 }))).toThrow(
+        BriefingTooShortError,
+      );
+    });
+
+    it("acepta summary de exactamente 50 chars (frontera inclusiva)", () => {
+      const summary50 = "x".repeat(50);
+      const briefing = Briefing.create(validInput({ summary: summary50 }));
+      expect(briefing.summary.length).toBe(50);
+    });
+
+    it("trim del summary se aplica antes de chequear longitud (whitespace no cuenta)", () => {
+      // "abc" rodeado de espacios queda en 3 chars tras trim → debe rechazar.
+      expect(() =>
+        Briefing.create(validInput({ summary: "  abc  ".padEnd(50, " ") })),
+      ).toThrow(BriefingTooShortError);
+    });
   });
 
   describe("restore", () => {
@@ -118,6 +139,33 @@ describe("Briefing entity", () => {
       const briefing = Briefing.restore(props);
       expect(briefing.id).toBe(props.id);
       expect(briefing.summary).toBe("x");
+    });
+
+    // T2 (audit): restore preserva TODOS los campos, no solo id/summary.
+    it("restore preserva el grafo completo de props (todos los getters)", () => {
+      const props = {
+        id: "11111111-1111-1111-1111-111111111111",
+        userId: "22222222-2222-2222-2222-222222222222",
+        summary: "summary persistido",
+        emailsConsidered: 7,
+        emailsTruncated: 3,
+        tokensUsedInput: 1234,
+        tokensUsedOutput: 567,
+        modelUsed: "gpt-4o-mini",
+        promptVersion: "v9.9.9",
+        createdAt: new Date("2025-12-31T23:59:59.999Z"),
+      };
+      const b = Briefing.restore(props);
+      expect(b.id).toBe(props.id);
+      expect(b.userId).toBe(props.userId);
+      expect(b.summary).toBe(props.summary);
+      expect(b.emailsConsidered).toBe(props.emailsConsidered);
+      expect(b.emailsTruncated).toBe(props.emailsTruncated);
+      expect(b.tokensUsedInput).toBe(props.tokensUsedInput);
+      expect(b.tokensUsedOutput).toBe(props.tokensUsedOutput);
+      expect(b.modelUsed).toBe(props.modelUsed);
+      expect(b.promptVersion).toBe(props.promptVersion);
+      expect(b.createdAt).toEqual(props.createdAt);
     });
   });
 });

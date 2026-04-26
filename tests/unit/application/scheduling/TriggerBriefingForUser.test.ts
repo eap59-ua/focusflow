@@ -63,4 +63,33 @@ describe("TriggerBriefingForUser use case", () => {
 
     expect(triggerNow).not.toHaveBeenCalled();
   });
+
+  // T12 (audit): si scheduler.triggerNow lanza, el use case propaga el error
+  // sin envolverlo. Mutante: try/catch que swallow → rompe este test.
+  it("scheduler.triggerNow falla: propaga el error tal cual", async () => {
+    const user = makeUser();
+    const bullErr = new Error("bullmq: connection lost");
+    const triggerNow = vi.fn(async () => {
+      throw bullErr;
+    });
+    const userRepo: UserRepositoryPort = {
+      findByEmail: vi.fn(),
+      findById: vi.fn(async () => user),
+      findAllWithBriefingEnabled: vi.fn(),
+      save: vi.fn(),
+    };
+    const scheduler: BriefingSchedulerPort = {
+      scheduleForUser: vi.fn(),
+      unscheduleForUser: vi.fn(),
+      triggerNow,
+    };
+
+    await expect(
+      new TriggerBriefingForUser({ userRepo, scheduler }).execute({
+        userId: user.id,
+      }),
+    ).rejects.toBe(bullErr);
+
+    expect(triggerNow).toHaveBeenCalledWith(user.id);
+  });
 });
