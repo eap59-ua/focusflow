@@ -54,6 +54,7 @@ function makeDeps(
   const userRepo: UserRepositoryPort = {
     findByEmail,
     findById,
+    findAllWithBriefingEnabled: vi.fn(async () => []),
     save: userSave,
   };
   const hasher: PasswordHasherPort = { hash, verify };

@@ -20,6 +20,13 @@ export class PrismaUserRepository implements UserRepositoryPort {
     return row ? this.toDomain(row) : null;
   }
 
+  async findAllWithBriefingEnabled(): Promise<readonly User[]> {
+    const rows = await this.prisma.user.findMany({
+      where: { briefingEnabled: true },
+    });
+    return rows.map((row) => this.toDomain(row));
+  }
+
   private toDomain(row: {
     id: string;
     email: string;
