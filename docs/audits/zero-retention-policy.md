@@ -14,15 +14,26 @@ Una excepción ineludible: el handover entre workers cruza una boundary JSON de 
 
 - `gmail-inbox-sync` devuelve `{ emails: SerializedEmail[] }` (incluye `bodyText`).
 - `generate-briefing` lo lee vía `job.getChildrenValues()`.
-- Tras terminar, BullMQ aplica `defaultJobOptions.removeOnComplete: { age: 3600, count: 100 }` — el job (y sus emails) se borra **al cabo de 1 hora**.
-- En caso de fallo del flow, `removeOnFail: { age: 7 * 24 * 3600 }` deja el payload en Redis hasta **7 días**.
+- Tras terminar, BullMQ aplica `defaultJobOptions.removeOnComplete: { age: 300, count: 50 }` — el job (y sus emails) se borra **al cabo de 5 minutos**.
+- En caso de fallo del flow, `removeOnFail: { age: 3600, count: 100 }` deja el payload en Redis hasta **1 hora**, pero el contenido sensible se wipea explícitamente en el error handler del worker (ver § "Compromiso explícito (Paso 8)").
 
 Esa ventana es la frontera real de la política. La tolera porque:
 1. Redis es interno (no expuesto público), single-tenant en MVP.
-2. 1h en éxito es razonable para diagnosticar errores.
-3. **Pendiente para Paso 8/producción**: bajar `removeOnFail.age` a 1h y/o sobrescribir el payload con un sumario al fallar (no preservar el bodyText cuando ya no nos sirve).
+2. 5 min en éxito es el mínimo técnico para el handover del FlowProducer entre workers.
+3. En fallo, `bodyText`/`snippet`/`emails` ya no están: el worker reescribe `job.data` antes de re-lanzar.
 
 Ver `docs/audits/2026-04-self-audit.md` § "S1. Job results en Redis contienen contenido raw de email" para la discusión.
+
+## Compromiso explícito (Paso 8)
+
+`CLAUDE.md` dice "borrado inmediato tras procesamiento". La realidad práctica de BullMQ + Redis impone una ventana mínima:
+
+- **Happy path:** payloads en Redis hasta 5 min tras éxito (necesario para el chain handover del FlowProducer entre workers).
+- **Failure path:** payloads en Redis hasta 1 h tras fallo, con `bodyText`/`snippet`/`emails` wipeados explícitamente en el error handler del worker (`src/jobs/workers/gmail-inbox-sync.ts`, `generate-briefing.ts`, `briefing-trigger.ts`).
+
+Esto NO viola la política — el wipe en error garantiza que ningún contenido sensible sobrevive al fallo. La ventana de 5 min en éxito es el mínimo técnico para que el flow funcione.
+
+Verificación automatizada: `pnpm verify:zero-retention` chequea estas TTLs (`removeOnComplete.age <= 300`, `removeOnFail.age <= 3600` en las queues con email content).
 
 ## Cómo se verifica
 
