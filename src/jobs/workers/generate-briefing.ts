@@ -9,7 +9,7 @@ export interface GenerateBriefingJobData {
   readonly userId: string;
   readonly emails?: readonly SerializedEmail[];
   // Marcador de zero-retention: el error handler reescribe job.data dejando fuera
-  // `emails` (que contiene bodyText) cuando el job falla.
+  // `emails` (que contiene el cuerpo del email) cuando el job falla.
   readonly _wiped?: boolean;
 }
 
@@ -55,8 +55,8 @@ export async function runGenerateBriefingJob(
     });
     return { briefingId };
   } catch (err) {
-    // El payload incluye `emails` con bodyText. Lo wipeamos antes de re-lanzar
-    // para que NO sobreviva en el estado fallido del job (removeOnFail.age).
+    // El payload incluye `emails` con el contenido del correo. Lo wipeamos antes
+    // de re-lanzar para que NO sobreviva en el estado fallido (removeOnFail.age).
     await job.updateData({ userId: job.data.userId, _wiped: true });
     throw err;
   }

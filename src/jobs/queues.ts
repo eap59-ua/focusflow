@@ -12,8 +12,8 @@ export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 // Zero-retention estricto (S1, Paso 8).
 //
 // El payload de varios jobs cruza la frontera JSON de BullMQ y queda en Redis.
-// `gmail-inbox-sync` (result) y `generate-briefing` (data) cargan email content
-// (bodyText/snippet). CLAUDE.md exige "borrado inmediato tras procesamiento":
+// `gmail-inbox-sync` (result) y `generate-briefing` (data) cargan el contenido
+// del email. CLAUDE.md exige "borrado inmediato tras procesamiento":
 //
 //   - removeOnComplete.age = 300s (5 min): mínimo técnico para el handover del
 //     FlowProducer entre workers; pasado ese plazo el payload se borra.
