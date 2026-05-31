@@ -105,6 +105,27 @@ export class User {
     });
   }
 
+  /**
+   * Desactiva el briefing y actualiza hour/timezone en una sola transición de
+   * dominio (una allocation, un updatedAt). Evita el patrón
+   * `updateBriefingPreferences(...).disableBriefing()` que construía dos User.
+   */
+  disableBriefingWith(hour: number, timezone: string): User {
+    if (!isValidBriefingHour(hour)) {
+      throw new InvalidBriefingHourError();
+    }
+    if (!isValidTimezone(timezone)) {
+      throw new InvalidBriefingTimezoneError();
+    }
+    return new User({
+      ...this.props,
+      briefingHour: hour,
+      briefingTimezone: timezone,
+      briefingEnabled: false,
+      updatedAt: new Date(),
+    });
+  }
+
   updateBriefingPreferences(hour: number, timezone: string): User {
     if (!isValidBriefingHour(hour)) {
       throw new InvalidBriefingHourError();

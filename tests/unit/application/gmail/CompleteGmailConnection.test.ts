@@ -1,11 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { BriefingSchedulerPort } from "@/application/ports/BriefingSchedulerPort";
 import type { GmailIntegrationRepositoryPort } from "@/application/ports/GmailIntegrationRepositoryPort";
 import type { OAuthClientPort } from "@/application/ports/OAuthClientPort";
 import type { OAuthStateStorePort } from "@/application/ports/OAuthStateStorePort";
 import type { TokenEncryptionPort } from "@/application/ports/TokenEncryptionPort";
+import type { UserRepositoryPort } from "@/application/ports/UserRepositoryPort";
 import { CompleteGmailConnection } from "@/application/use-cases/gmail/CompleteGmailConnection";
 import { OAuthStateMismatchError } from "@/domain/gmail-integration/errors/OAuthStateMismatchError";
+import { Email } from "@/domain/user/Email";
+import { HashedPassword } from "@/domain/user/HashedPassword";
+import { User } from "@/domain/user/User";
 
 const USER_ID = "00000000-0000-0000-0000-000000000001";
 const STATE = "abcd1234";
@@ -27,6 +32,9 @@ function makeDeps(
     exchangeCode: OAuthClientPort["exchangeCode"];
     encrypt: TokenEncryptionPort["encrypt"];
     save: GmailIntegrationRepositoryPort["save"];
+    findById: UserRepositoryPort["findById"];
+    userSave: UserRepositoryPort["save"];
+    scheduleForUser: BriefingSchedulerPort["scheduleForUser"];
   }> = {},
 ) {
   const consume = vi.fn(
@@ -48,6 +56,13 @@ function makeDeps(
   const save = vi.fn(overrides.save ?? (async () => undefined));
   const findByUserId = vi.fn(async () => null);
   const deleteByUserId = vi.fn(async () => undefined);
+  const userFindById = vi.fn(
+    overrides.findById ?? (async (): Promise<User | null> => null),
+  );
+  const userSave = vi.fn(overrides.userSave ?? (async () => undefined));
+  const scheduleForUser = vi.fn(
+    overrides.scheduleForUser ?? (async () => undefined),
+  );
 
   const oauthStateStore: OAuthStateStorePort = {
     save: vi.fn(async () => undefined),
@@ -64,19 +79,17 @@ function makeDeps(
     findByUserId,
     deleteByUserId,
   };
-  const userRepo: import("@/application/ports/UserRepositoryPort").UserRepositoryPort =
-    {
-      findByEmail: vi.fn(),
-      findById: vi.fn(async () => null),
-      findAllWithBriefingEnabled: vi.fn(async () => []),
-      save: vi.fn(),
-    };
-  const scheduler: import("@/application/ports/BriefingSchedulerPort").BriefingSchedulerPort =
-    {
-      scheduleForUser: vi.fn(),
-      unscheduleForUser: vi.fn(),
-      triggerNow: vi.fn(),
-    };
+  const userRepo: UserRepositoryPort = {
+    findByEmail: vi.fn(),
+    findById: userFindById,
+    findAllWithBriefingEnabled: vi.fn(async () => []),
+    save: userSave,
+  };
+  const scheduler: BriefingSchedulerPort = {
+    scheduleForUser,
+    unscheduleForUser: vi.fn(),
+    triggerNow: vi.fn(),
+  };
 
   return {
     deps: {
@@ -93,6 +106,9 @@ function makeDeps(
     exchangeCode,
     encrypt,
     save,
+    userFindById,
+    userSave,
+    scheduleForUser,
   };
 }
 
@@ -230,5 +246,29 @@ describe("CompleteGmailConnection use case", () => {
     const expiresMs = integration.tokenExpiresAt.getTime();
     expect(expiresMs).toBeGreaterThanOrEqual(before + 3600 * 1000);
     expect(expiresMs).toBeLessThanOrEqual(after + 3600 * 1000);
+  });
+
+  // S2 (audit): al reconectar Gmail, las preferencias de briefing del usuario
+  // (hour/timezone) NO deben volver a los defaults — se preservan.
+  it("reconexión: preserva briefingHour/Timezone del usuario (no fuerza defaults)", async () => {
+    const existing = User.create({
+      email: Email.create("u@x.com"),
+      hashedPassword: HashedPassword.fromHash("$2a$10$h"),
+      displayName: "Jane",
+    }).enableBriefing(10, "Asia/Tokyo");
+
+    const { deps, userSave, scheduleForUser } = makeDeps({
+      findById: async () => existing,
+    });
+    const useCase = new CompleteGmailConnection(deps);
+
+    await useCase.execute({ userId: USER_ID, code: CODE, state: STATE });
+
+    expect(userSave).toHaveBeenCalledTimes(1);
+    const saved = userSave.mock.calls[0]![0] as User;
+    expect(saved.briefingEnabled).toBe(true);
+    expect(saved.briefingHour).toBe(10);
+    expect(saved.briefingTimezone).toBe("Asia/Tokyo");
+    expect(scheduleForUser).toHaveBeenCalledWith(saved);
   });
 });

@@ -148,6 +148,29 @@ describe("User briefing preferences", () => {
     });
   });
 
+  // S3 (audit): apagar + actualizar prefs en una sola transición (una allocation).
+  describe("disableBriefingWith", () => {
+    it("apaga el toggle y actualiza hour/tz en una pasada; nueva instancia", () => {
+      const u = makeUser().enableBriefing(9, "UTC");
+      const disabled = u.disableBriefingWith(18, "America/New_York");
+
+      expect(disabled).not.toBe(u);
+      expect(disabled.briefingEnabled).toBe(false);
+      expect(disabled.briefingHour).toBe(18);
+      expect(disabled.briefingTimezone).toBe("America/New_York");
+    });
+
+    it("rechaza hour fuera de rango y tz inválido", () => {
+      const u = makeUser();
+      expect(() => u.disableBriefingWith(99, "UTC")).toThrow(
+        InvalidBriefingHourError,
+      );
+      expect(() => u.disableBriefingWith(8, "X/Y")).toThrow(
+        InvalidBriefingTimezoneError,
+      );
+    });
+  });
+
   describe("updateBriefingPreferences", () => {
     it("actualiza hour+timezone sin cambiar enabled; nueva instancia", () => {
       const u = makeUser().enableBriefing(8, "Europe/Madrid");
