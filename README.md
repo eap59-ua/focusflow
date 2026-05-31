@@ -1,8 +1,12 @@
 # FocusFlow
 
+[![CI](https://github.com/eap59-ua/focusflow/actions/workflows/ci.yml/badge.svg)](https://github.com/eap59-ua/focusflow/actions/workflows/ci.yml)
+
 > Briefing matutino generado por IA a partir de tu inbox de Gmail. Cada mañana recibes un email con resumen estructurado de lo urgente, lo informativo, y el resto.
 
 Single-user, async, personal. Nada de dashboards ni multi-tenant: una persona conecta su Gmail, y a las 8:00 hora local recibe un email.
+
+**Live demo:** https://focusflow.example.com *(placeholder — reemplazar con la URL real de Railway tras el primer deploy; ver [`docs/deploy.md`](docs/deploy.md)).*
 
 > *Screenshot del settings + email recibido pendiente de smoke real con creds. Placeholder hasta entonces.*
 
@@ -199,16 +203,31 @@ Lista completa en [`.env.example`](.env.example). Las críticas para arrancar:
 
 Las claves sensibles (OAuth, OpenAI, encryption) **no se commitean** y **no se envían al cliente**. Validado por `next build` (verifica que `src/infrastructure/` no aparezca en client bundles).
 
-## Pendiente para deploy
+## Deploy
 
-Paso 8 (no escrito todavía) cubrirá:
+Hosting: **Railway all-in-one** (web + worker + Postgres + Redis). Guía técnica
+paso a paso en [`docs/deploy.md`](docs/deploy.md); checklist de cuentas y
+credenciales en [`docs/pending-external-setup.md`](docs/pending-external-setup.md)
+§"Paso 8".
 
-- Hosting decision: Vercel + Neon + Upstash, Railway, o VPS. Decisión documentada en [`docs/plan/08a-decisiones-pendientes.md`](docs/plan/08a-decisiones-pendientes.md).
-- Rate limiting en endpoints públicos (Redis-backed token bucket).
-- Sentry o similar para error tracking.
-- CI con GitHub Actions (typecheck + lint + tests + integration).
-- Security headers (CSP, HSTS) en `next.config.ts`.
-- Landing page `/` con explicación + CTA registro.
+Entregado en el Paso 8 (deploy + hardening):
+
+- ✅ Error tracking con **Sentry** (`@sentry/nextjs`), con `beforeSend` que
+  redacta tokens y contenido de email.
+- ✅ **CI** GitHub Actions (typecheck + lint + test:unit + test:integration con
+  Postgres/Redis/Mailpit) — ver badge arriba.
+- ✅ **Branding**: logo SVG, favicon y Open Graph meta tags.
+- ✅ Config de deploy: `railway.json` + `Procfile` (migraciones al arrancar).
+- ✅ Zero-retention estricto en BullMQ (TTL acotado + wipe en error).
+
+Aún pendiente (post-MVP, **no** incluido en el Paso 8):
+
+- ⏳ Rate limiting en endpoints públicos (`/api/trpc/auth.*`) — mandato de
+  `CLAUDE.md`; recomendado antes de exponer un dominio público con tráfico real.
+- ⏳ Security headers (CSP, HSTS) en `next.config.ts`.
+- ⏳ Landing page `/` con copy + CTA de registro.
+- ⏳ El deploy real en sí (cuentas + dominio + smoke con creds): trabajo manual
+  del developer, documentado paso a paso.
 
 ## Licencia
 
