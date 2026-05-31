@@ -18,7 +18,7 @@ FocusFlow es la versión más simple posible de "alguien lee tu inbox antes que 
 
 ## Estado
 
-MVP **code-complete**. 32 commits encadenados a través de 8 fases (Paso 0 a Paso 7), 188 unit tests + 35 integration tests, cobertura 98% en `domain` + `application`. Smoke real con credenciales pendiente (ver `docs/pending-external-setup.md`); `pnpm smoke:fakes` valida el chain completo sin necesidad de creds.
+MVP **code-complete** (`v0.1.0`). Las 8 fases del MVP construidas en una branch chain (Paso 0 a Paso 8), 209 unit tests + 35 integration tests, cobertura 98% en `domain` + `application`, `pnpm build` prod limpio. Smoke real con credenciales y deploy pendientes (ver `docs/pending-external-setup.md`); `pnpm smoke:fakes` valida el chain completo sin necesidad de creds.
 
 Roadmap detallado en [`docs/plan/00-roadmap.md`](docs/plan/00-roadmap.md). Self-audit del código en [`docs/audits/2026-04-self-audit.md`](docs/audits/2026-04-self-audit.md).
 
@@ -228,6 +228,19 @@ Aún pendiente (post-MVP, **no** incluido en el Paso 8):
 - ⏳ Landing page `/` con copy + CTA de registro.
 - ⏳ El deploy real en sí (cuentas + dominio + smoke con creds): trabajo manual
   del developer, documentado paso a paso.
+
+## What's next (post-MVP)
+
+Ideas fuera del scope del MVP (no son compromisos, solo dirección). La regla de
+scope-lock del `CLAUDE.md` las mantiene fuera hasta que el Morning Briefing esté
+estable en producción:
+
+- **Conector Calendar**: incluir los eventos del día en el briefing.
+- **Conector Linear / GitHub**: issues y PRs que requieren atención hoy.
+- **Dashboard web de histórico**: ver briefings pasados sin depender del email.
+- **Settings avanzados**: frecuencia custom, filtros por labels de Gmail.
+- **Multi-tenant**: abrir a más usuarios (requiere verificación de la app Google,
+  rate limiting robusto, billing).
 
 ## Licencia
 

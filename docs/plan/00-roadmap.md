@@ -84,16 +84,23 @@ Caso de uso `RegisterUser` atravesando las 4 capas. Password bcrypt, errores tip
 
 **Criterio "hecho":** el MVP funciona sin intervención. Te registras, conectas Gmail, y al día siguiente a las 8:00 recibes tu briefing.
 
-### Paso 8 — Hardening + landing + deploy
+### Paso 8 — Hardening + deploy ✅ (código) / 🛑 (deploy real manual)
 
-- Rate limit en endpoints públicos (`/api/trpc/auth.*`) con Redis.
-- Observabilidad: structured logging, error tracking (Sentry o similar).
-- Landing page `/` con explicación del producto y CTA a registro.
-- CI/CD: GitHub Actions con gate (typecheck + lint + test:unit + test:integration) + deploy automático a Vercel o Railway.
-- Security headers (CSP, HSTS, etc.) en `next.config.ts`.
-- README.md público con screenshots, stack, cómo correr local, cómo deployar.
+Ejecutado en `feat/08-deploy-hardening` (10 commits). Plan: [`08-deploy-hardening.md`](08-deploy-hardening.md).
 
-**Criterio "hecho":** URL pública visitable, deploy automático desde `main`, logs consultables, 99%+ uptime.
+Entregado:
+
+- ✅ Zero-retention estricto en BullMQ (TTL acotado 5min/1h + wipe de payload sensible en error handlers). (S1)
+- ✅ Fixes worth-fixing del self-audit: preservar prefs en reconexión, single-pass disable, fallback de briefing corto, idle en vez de exit. (S2/S3/S4/S6)
+- ✅ Observabilidad: `@sentry/nextjs` (server/client/edge) con `beforeSend` que redacta tokens y contenido de email.
+- ✅ CI: GitHub Actions con gate completo (typecheck + lint + test:unit + test:integration con Postgres/Redis/Mailpit).
+- ✅ Branding: logo SVG, favicon, Open Graph meta tags.
+- ✅ Config de deploy: `railway.json` + `Procfile` (migraciones al arrancar) + `docs/deploy.md`.
+- ✅ Fix build prod: `/login` envuelto en Suspense (bug pre-existente del Paso 2).
+
+Diferido a post-MVP (NO en los commits del Paso 8): rate limiting en endpoints públicos (mandato de `CLAUDE.md`), security headers (CSP/HSTS), landing page `/`.
+
+**Criterio "hecho":** código de deploy completo y `pnpm build` prod limpio. Falta el deploy real (cuentas + dominio + smoke con creds) — trabajo manual del developer, documentado en `docs/pending-external-setup.md` §"Paso 8".
 
 ## Qué NO entra en el MVP (post-MVP explícito)
 
@@ -135,7 +142,15 @@ Los planes son artefactos vivos: al terminar una fase, se anota un bloque `## De
 
 ## Estado actual
 
+**MVP code-complete.** Los 8 pasos están construidos a través de la branch chain
+`feat/01 → … → feat/07b-revision-y-debug → feat/08-deploy-hardening`. Pendiente:
+merge a `main` + deploy real con credenciales (manual del developer).
+
 - **Paso 0-2:** ✅ mergeados en main.
-- **Paso 3:** código ✅ en `feat/03-oauth-gmail`, smoke real pendiente, esperando push y merge del developer.
-- **Pasos 4-7:** planes escritos, en cola para ejecución autónoma. Branch chain prevista: `feat/04-ingesta-gmail` desde `feat/03-oauth-gmail`, `feat/05-briefing-openai` desde 04, etc.
-- **Paso 8:** plan no escrito, depende de decisiones de hosting que se toman cerca del momento.
+- **Paso 3:** código ✅ (`feat/03-oauth-gmail`), smoke real con creds pendiente.
+- **Pasos 4-7:** ✅ ejecutados (ingesta Gmail, briefing OpenAI, envío email, scheduling cron).
+- **Paso 7b:** ✅ self-audit + hardening de tests + observabilidad.
+- **Paso 8:** ✅ código (`feat/08-deploy-hardening`): zero-retention strict, fixes del audit, Sentry, CI, branding, config Railway. Deploy real pendiente (manual).
+
+**Métricas finales:** 209 unit tests + 35 integration, cobertura 98%+ en
+`domain` + `application`, `pnpm build` prod limpio. Tag `v0.1.0`.
