@@ -2,12 +2,14 @@ import type {
   BriefingSchedulerPort,
   TriggerBriefingResult,
 } from "@/application/ports/BriefingSchedulerPort";
+import type { LoggerPort } from "@/application/ports/LoggerPort";
 import type { UserRepositoryPort } from "@/application/ports/UserRepositoryPort";
 import { UserNotFoundError } from "@/domain/user/errors/UserNotFoundError";
 
 export interface TriggerBriefingForUserDependencies {
   readonly userRepo: UserRepositoryPort;
   readonly scheduler: BriefingSchedulerPort;
+  readonly logger?: LoggerPort;
 }
 
 export interface TriggerBriefingForUserInput {
@@ -24,6 +26,12 @@ export class TriggerBriefingForUser {
     if (!user) {
       throw new UserNotFoundError();
     }
-    return this.deps.scheduler.triggerNow(user.id);
+    const result = await this.deps.scheduler.triggerNow(user.id);
+    this.deps.logger?.info({
+      event: "briefing_triggered",
+      userId: user.id,
+      flowId: result.flowId,
+    });
+    return result;
   }
 }

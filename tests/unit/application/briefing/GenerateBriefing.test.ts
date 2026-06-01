@@ -200,4 +200,21 @@ describe("GenerateBriefing use case", () => {
     const saved = save.mock.calls[0]![0] as Briefing;
     expect(saved.emailsTruncated).toBe(0);
   });
+
+  // T7 (audit): el primer email solo, aunque exceda budget, debe entrar (no
+  // hay fallback). Mutante: borrar `&& considered.length > 0` haría que con
+  // un solo email sobre-budget se devolviese array vacío al generator.
+  it("primer email solo > budget: entra igualmente, truncated=0", async () => {
+    const { deps, generate, save } = makeDeps({ maxInputTokens: 50 });
+    const useCase = new GenerateBriefing(deps);
+    // Un solo email con bodyText muy grande (charBudget = 50*4 = 200 chars).
+    const giant = makeEmail({ id: "huge", bodyLen: 5000 });
+    await useCase.execute({ userId: USER_ID, emails: [giant] });
+
+    const consideredArg = generate.mock.calls[0]![0] as readonly EmailMessage[];
+    expect(consideredArg).toHaveLength(1);
+    const saved = save.mock.calls[0]![0] as Briefing;
+    expect(saved.emailsConsidered).toBe(1);
+    expect(saved.emailsTruncated).toBe(0);
+  });
 });

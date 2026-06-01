@@ -52,6 +52,25 @@ describe("AesGcmTokenEncryption", () => {
       const b = await enc.encrypt("same-input");
       expect(a).not.toBe(b);
     });
+
+    // T9 (audit): forma del output. Reforzamos que el contrato base64 + tamaño
+    // mínimo del envelope (12 IV + 16 authTag = 28 bytes) se mantiene.
+    it("output es base64 válido y tiene >= 28 bytes (IV+authTag mínimo)", async () => {
+      const enc = new AesGcmTokenEncryption(VALID_KEY);
+      const ct = await enc.encrypt("x");
+      // base64 sólo usa [A-Za-z0-9+/=].
+      expect(ct).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+      const buf = Buffer.from(ct, "base64");
+      expect(buf.length).toBeGreaterThanOrEqual(28);
+    });
+
+    it("encrypts independientes generan IV distinto en los primeros 12 bytes", async () => {
+      const enc = new AesGcmTokenEncryption(VALID_KEY);
+      const a = Buffer.from(await enc.encrypt("same"), "base64").subarray(0, 12);
+      const b = Buffer.from(await enc.encrypt("same"), "base64").subarray(0, 12);
+      // Probabilidad de colisión real ≈ 2^-96, despreciable.
+      expect(Buffer.compare(a, b)).not.toBe(0);
+    });
   });
 
   describe("tampering detection", () => {

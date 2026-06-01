@@ -83,9 +83,40 @@ describe("User briefing preferences", () => {
       );
     });
 
+    // T4 (audit): el check usa Number.isInteger; valores no finitos deben rechazar.
+    it("rechaza hour=NaN, Infinity, -Infinity (no finitos)", () => {
+      const u = makeUser();
+      expect(() => u.enableBriefing(Number.NaN, "UTC")).toThrow(
+        InvalidBriefingHourError,
+      );
+      expect(() => u.enableBriefing(Number.POSITIVE_INFINITY, "UTC")).toThrow(
+        InvalidBriefingHourError,
+      );
+      expect(() => u.enableBriefing(Number.NEGATIVE_INFINITY, "UTC")).toThrow(
+        InvalidBriefingHourError,
+      );
+    });
+
     it("rechaza timezone inválido", () => {
       const u = makeUser();
       expect(() => u.enableBriefing(8, "Bogus/Zone")).toThrow(
+        InvalidBriefingTimezoneError,
+      );
+    });
+
+    // T5 (audit): Intl.DateTimeFormat es permisivo. Documentamos comportamiento:
+    // "UTC" y los alias Etc/GMT± SÍ se aceptan. Esto pinea la decisión actual
+    // y nos permite detectar si un cambio de runtime/Node lo rompe en el futuro.
+    it("acepta UTC, Etc/GMT-5 y otros aliases IANA estándar", () => {
+      const u = makeUser();
+      expect(() => u.enableBriefing(8, "UTC")).not.toThrow();
+      expect(() => u.enableBriefing(8, "Etc/GMT+0")).not.toThrow();
+      expect(() => u.enableBriefing(8, "Etc/GMT-3")).not.toThrow();
+    });
+
+    it("rechaza timezone con whitespace puro", () => {
+      const u = makeUser();
+      expect(() => u.enableBriefing(8, "   ")).toThrow(
         InvalidBriefingTimezoneError,
       );
     });
