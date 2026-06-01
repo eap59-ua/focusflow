@@ -3,6 +3,7 @@ import { Worker, type ConnectionOptions } from "bullmq";
 import type { FetchInboxEmails } from "@/application/use-cases/email/FetchInboxEmails";
 
 import { QUEUE_NAMES } from "../queues";
+import { serializeEmail, type SerializedEmail } from "../serialization";
 
 export interface GmailInboxSyncJobData {
   readonly userId: string;
@@ -12,6 +13,7 @@ export interface GmailInboxSyncJobData {
 export interface GmailInboxSyncJobResult {
   readonly count: number;
   readonly integrationId: string;
+  readonly emails: readonly SerializedEmail[];
 }
 
 export interface GmailInboxSyncWorkerDependencies {
@@ -31,7 +33,11 @@ export function buildGmailInboxSyncWorker(
         userId,
         since,
       });
-      return { count: emails.length, integrationId };
+      return {
+        count: emails.length,
+        integrationId,
+        emails: emails.map(serializeEmail),
+      };
     },
     { connection: deps.connection },
   );

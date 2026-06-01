@@ -5,6 +5,7 @@ import { GetCurrentUser } from "@/application/use-cases/auth/GetCurrentUser";
 import { LoginUser } from "@/application/use-cases/auth/LoginUser";
 import { LogoutUser } from "@/application/use-cases/auth/LogoutUser";
 import { RegisterUser } from "@/application/use-cases/auth/RegisterUser";
+import { GenerateBriefing } from "@/application/use-cases/briefing/GenerateBriefing";
 import { FetchInboxEmails } from "@/application/use-cases/email/FetchInboxEmails";
 import { BeginGmailConnection } from "@/application/use-cases/gmail/BeginGmailConnection";
 import { CompleteGmailConnection } from "@/application/use-cases/gmail/CompleteGmailConnection";
@@ -14,16 +15,21 @@ import { RefreshGmailToken } from "@/application/use-cases/gmail/RefreshGmailTok
 
 import { GmailEmailFetcher } from "./adapters/gmail/GmailEmailFetcher";
 import { GoogleOAuthClient } from "./adapters/oauth/GoogleOAuthClient";
+import { OpenAIBriefingGenerator } from "./adapters/openai/OpenAIBriefingGenerator";
 import { RedisOAuthStateStore } from "./adapters/oauth/RedisOAuthStateStore";
+import { PrismaBriefingRepository } from "./adapters/prisma/PrismaBriefingRepository";
 import { PrismaGmailIntegrationRepository } from "./adapters/prisma/PrismaGmailIntegrationRepository";
 import { PrismaSessionRepository } from "./adapters/prisma/PrismaSessionRepository";
 import { PrismaUserRepository } from "./adapters/prisma/PrismaUserRepository";
 import { BcryptPasswordHasher } from "./adapters/security/BcryptPasswordHasher";
+import { MORNING_BRIEFING_PROMPT_VERSION } from "./openai/prompts/morning-briefing";
 import { AesGcmTokenEncryption } from "./security/AesGcmTokenEncryption";
 
 const DEFAULT_SESSION_LIFETIME_DAYS = 30;
 const DEFAULT_GMAIL_FETCH_QUERY = "in:inbox newer_than:1d";
 const DEFAULT_GMAIL_FETCH_MAX_MESSAGES = 50;
+const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+const DEFAULT_OPENAI_MAX_INPUT_TOKENS = 8000;
 
 export interface Container {
   readonly registerUser: RegisterUser;
@@ -36,6 +42,7 @@ export interface Container {
   readonly disconnectGmail: DisconnectGmail;
   readonly getGmailStatus: GetGmailStatus;
   readonly fetchInboxEmails: FetchInboxEmails;
+  readonly generateBriefing: GenerateBriefing;
 }
 
 function readSessionLifetimeDays(): number {
@@ -67,6 +74,18 @@ function readGmailFetchMaxMessages(): number {
   if (!Number.isFinite(parsed) || parsed <= 0) {
     throw new Error(
       `GMAIL_FETCH_MAX_MESSAGES inválido: "${raw}". Debe ser un número positivo.`,
+    );
+  }
+  return Math.floor(parsed);
+}
+
+function readOpenAIMaxInputTokens(): number {
+  const raw = process.env.OPENAI_MAX_INPUT_TOKENS;
+  if (!raw) return DEFAULT_OPENAI_MAX_INPUT_TOKENS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(
+      `OPENAI_MAX_INPUT_TOKENS inválido: "${raw}". Debe ser un número positivo.`,
     );
   }
   return Math.floor(parsed);
@@ -136,6 +155,18 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     maxResults: readGmailFetchMaxMessages(),
   });
 
+  const briefingRepo = new PrismaBriefingRepository(prisma);
+  const briefingGenerator = new OpenAIBriefingGenerator({
+    apiKey: process.env.OPENAI_API_KEY ?? "",
+    model: process.env.OPENAI_MODEL ?? DEFAULT_OPENAI_MODEL,
+  });
+  const generateBriefing = new GenerateBriefing({
+    briefingGenerator,
+    briefingRepo,
+    promptVersion: MORNING_BRIEFING_PROMPT_VERSION,
+    maxInputTokens: readOpenAIMaxInputTokens(),
+  });
+
   return {
     registerUser,
     loginUser,
@@ -147,5 +178,6 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     disconnectGmail,
     getGmailStatus,
     fetchInboxEmails,
+    generateBriefing,
   };
 }
