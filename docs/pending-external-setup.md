@@ -131,52 +131,88 @@ Decisión a tomar antes del Paso 6.
 
 ---
 
-## Paso 8 — Hardening + deploy (futuro)
+## Paso 8 — Deploy a producción
 
-### ⏸️ Hosting
+**Decisiones tomadas** (Cowork, reflejadas en `docs/plan/08-deploy-hardening.md`):
+hosting **Railway all-in-one**, error tracking **Sentry free tier**, CI **GitHub
+Actions**, OAuth consent en **Testing mode**, dominio **custom (~$12/año)**.
 
-Decisión pendiente entre:
+El código del Paso 8 está hecho y commiteado (Sentry cableado, `railway.json` +
+`Procfile`, CI, branding). Lo que queda abajo es **trabajo manual del developer**:
+crear cuentas y pegar credenciales. Mecánica técnica detallada en
+[`docs/deploy.md`](deploy.md); esto es el checklist de cuentas.
 
-- **Vercel** (recomendado para Next.js): free tier generoso para proyectos personales, deploy automático desde GitHub. Postgres y Redis no incluidos — usar Neon (Postgres) y Upstash (Redis).
-- **Railway**: incluye Postgres y Redis, $5/mes mínimo. Deploy más simple.
+### 🛑 Sentry account
 
-Variables y secrets en el panel del hosting:
+1. https://sentry.io/signup → New project → **Next.js**.
+2. Copiar el **DSN** del proyecto.
+3. Pegarlo como variable `SENTRY_DSN` en el servicio web de Railway (paso
+   siguiente). En local es opcional: con `SENTRY_DSN` vacío el SDK no envía nada.
 
-- Todas las del `.env` (sin commitear nunca).
-- `DATABASE_URL` apuntando al Postgres de prod.
-- `REDIS_URL` apuntando al Redis de prod.
-- `NEXTAUTH_URL` o equivalente con el dominio público.
+### 🛑 Railway — proyecto + servicios
 
-### ⏸️ Dominio
+1. https://railway.app/new → **Deploy from GitHub repo** → `eap59-ua/focusflow`.
+   Railway detecta `railway.json` + `Procfile` (servicio **web**).
+2. **+ New → Database → Add PostgreSQL** → inyecta `DATABASE_URL`.
+3. **+ New → Database → Add Redis** → inyecta `REDIS_URL`.
+4. **+ New → GitHub Repo (mismo repo)** para el servicio **worker**: Settings →
+   Deploy → Custom Start Command = `pnpm worker:start`. Mismas variables que web.
+   ⚠️ No prunear devDependencies (el worker usa `tsx`).
+5. Variables del servicio web (Settings → Variables), además de DATABASE_URL/
+   REDIS_URL que ya inyectan los plugins:
+   - `TOKEN_ENCRYPTION_KEY` — **64 hex NUEVOS**, distintos de dev
+     (`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`).
+   - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (los del Paso 3).
+   - `GOOGLE_OAUTH_REDIRECT_URI=https://<tu-dominio>/settings/gmail/callback`.
+   - `OPENAI_API_KEY`.
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
+     `EMAIL_FROM_ADDRESS`, `EMAIL_FROM_NAME` (provider prod, ver abajo).
+   - `SENTRY_DSN`, `SENTRY_ENVIRONMENT=production`.
+   - `APP_URL=https://<tu-dominio>`, `SCHEDULER_ENABLED=true`.
+6. Railway redeploya al guardar variables. Las migraciones corren solas al
+   arrancar el web (`pnpm db:deploy && pnpm start`).
 
-Decidir si usar subdominio gratuito del hosting (`focusflow.vercel.app`) o registrar un dominio personalizado. Si custom: configurar DNS.
+### 🛑 SMTP provider para prod (Resend recomendado)
 
-### ⏸️ Sentry (error tracking)
+1. https://resend.com/signup → API key → copiar.
+2. Verificar dominio (Resend guía los DNS records).
+3. En Railway: `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`,
+   `SMTP_USER=resend`, `SMTP_PASS=<api key>`,
+   `EMAIL_FROM_ADDRESS=focusflow@tu-dominio.com`, `EMAIL_FROM_NAME=FocusFlow`.
 
-1. https://sentry.io → New project → Next.js.
-2. Copiar DSN → `.env`:
-   ```
-   SENTRY_DSN="https://...@sentry.io/..."
-   ```
-3. Instalar `@sentry/nextjs` (parar y preguntar antes de instalar — librería nueva).
+### 🛑 Custom dominio (~$12/año)
 
-### ⏸️ GitHub Actions secrets
+1. Comprar en Namecheap/Porkbun (`.app`, `.io`, `.com`).
+2. Railway: servicio web → Settings → Networking → Custom Domain → tu dominio.
+3. Railway da un CNAME target → en tu registrar: CNAME `@` (o `www` + redirect
+   301 desde apex) → ese target.
+4. Esperar propagación (~5-30 min). Railway emite cert TLS (Let's Encrypt) solo.
 
-En `Settings → Secrets and variables → Actions` del repo:
+### 🛑 Google Cloud OAuth — producción
 
-- `DATABASE_URL` (DB de tests CI o staging).
-- `OPENAI_API_KEY` (si el CI corre tests que la necesitan, lo cual NO debería ser el caso si los tests están bien mockeados).
-- Cualquier otro secreto que el deploy automático necesite.
+1. APIs & Services → Credentials → editar el OAuth 2.0 Client ID existente.
+2. Authorized redirect URIs → añadir
+   `https://<tu-dominio>/settings/gmail/callback` (no quitar el de localhost).
+3. OAuth consent screen sigue en **Testing mode** (single-user + ~10 test users;
+   no requiere verificación de Google). Añadir tu Gmail como test user si no está.
 
-### ⏸️ Cuenta Google Cloud — modo producción
+### GitHub Actions secrets — ninguno necesario
 
-Para el smoke real con usuarios fuera de la lista de test users:
+El CI (`.github/workflows/ci.yml`) corre el gate completo contra servicios
+Postgres/Redis/Mailpit efímeros y usa `.env.test` (committeado, con una
+`TOKEN_ENCRYPTION_KEY` **dummy** — no es un secreto real). **No hay que
+configurar ningún secret** para que el CI pase. (Si en el futuro el deploy
+automático necesitara tokens, irían aquí.)
 
-1. OAuth consent screen → Publish app (sale del modo "Testing").
-2. Si pides scopes sensibles (`gmail.readonly` lo es), Google exige verificación de la app: documentos de privacy policy, terms of service, video del flujo, justificación de uso. Proceso de 4-6 semanas.
-3. Para uso estrictamente personal del developer (yo mismo como único usuario), basta con quedarse en modo "Testing" con un test user — no hace falta verificación.
+### Smoke deploy
 
-Decisión a tomar en Paso 8 según si el MVP se abre a más usuarios.
+1. Push a `main` → Railway redeploya.
+2. `https://<tu-dominio>/api/health` → 200.
+3. Registro → conectar Gmail (redirect prod ya en Google) → trigger manual.
+4. El email llega vía Resend.
+5. Dashboard de Sentry: sin errores nuevos.
+
+Si todo pasa: **MVP en producción**.
 
 ---
 
@@ -266,5 +302,8 @@ Estado actual del `.env` local (no commiteado):
 | `OPENAI_API_KEY` | ⏸️ vacío | smoke manual Paso 5 |
 | `EMAIL_FROM` | ✅ default | — |
 | `SMTP_URL` / `RESEND_API_KEY` | ⏸️ vacío | smoke manual Paso 6 |
+| `SENTRY_DSN` | ⏸️ vacío (degrada gracefully) | error tracking real (Paso 8) |
+| `SENTRY_ENVIRONMENT` | ✅ `development` | — |
+| `APP_URL` | ✅ `http://localhost:3030` | — |
 
 Para futuro Claude Code: mientras `🛑` esté presente, el smoke manual del paso correspondiente no se puede ejecutar, pero el código sí se puede construir, testear y commitear. Reportar al final del paso qué smoke quedó pendiente y por qué.

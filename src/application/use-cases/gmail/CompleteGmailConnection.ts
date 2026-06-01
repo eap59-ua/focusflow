@@ -61,10 +61,13 @@ export class CompleteGmailConnection {
 
     const user = await this.deps.userRepo.findById(input.userId);
     if (user) {
-      const enabled = user.enableBriefing(
-        this.deps.defaultBriefingHour,
-        this.deps.defaultBriefingTimezone,
-      );
+      // S2: preservar las preferencias de briefing del usuario en reconexión.
+      // Antes se forzaban los defaults, pisando hour/timezone que el usuario
+      // hubiera configurado. Sólo si no tuviera prefs (no ocurre en el modelo
+      // actual, donde User.create siempre las fija) caería al default inyectado.
+      const hour = user.briefingHour ?? this.deps.defaultBriefingHour;
+      const timezone = user.briefingTimezone ?? this.deps.defaultBriefingTimezone;
+      const enabled = user.enableBriefing(hour, timezone);
       await this.deps.userRepo.save(enabled);
       await this.deps.scheduler.scheduleForUser(enabled);
     }

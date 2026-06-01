@@ -4,7 +4,6 @@ import type { BriefingGeneratorPort } from "@/application/ports/BriefingGenerato
 import type { BriefingRepositoryPort } from "@/application/ports/BriefingRepositoryPort";
 import { GenerateBriefing } from "@/application/use-cases/briefing/GenerateBriefing";
 import { Briefing } from "@/domain/briefing/Briefing";
-import { BriefingTooShortError } from "@/domain/briefing/errors/BriefingTooShortError";
 import { EmailMessage } from "@/domain/email-message/EmailMessage";
 
 const USER_ID = "00000000-0000-0000-0000-000000000001";
@@ -146,7 +145,9 @@ describe("GenerateBriefing use case", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it("generator devuelve summary corto → BriefingTooShortError, no persiste", async () => {
+  // S4 (audit): summary demasiado corto NO debe propagar BriefingTooShortError
+  // (perdería el briefing del día tras retries). Persiste un fallback explicativo.
+  it("generator devuelve summary corto → persiste briefing de fallback, no propaga", async () => {
     const { deps, save } = makeDeps({
       generate: async () => ({
         summary: "muy corto",
@@ -157,10 +158,21 @@ describe("GenerateBriefing use case", () => {
     });
     const useCase = new GenerateBriefing(deps);
 
-    await expect(
-      useCase.execute({ userId: USER_ID, emails: [makeEmail()] }),
-    ).rejects.toBeInstanceOf(BriefingTooShortError);
-    expect(save).not.toHaveBeenCalled();
+    const result = await useCase.execute({
+      userId: USER_ID,
+      emails: [makeEmail()],
+    });
+
+    expect(save).toHaveBeenCalledTimes(1);
+    const saved = save.mock.calls[0]![0] as Briefing;
+    expect(saved.summary.length).toBeGreaterThanOrEqual(50);
+    expect(saved.summary).not.toBe("muy corto");
+    // Preserva las métricas reales del intento (coste no se pierde).
+    expect(saved.modelUsed).toBe("gpt-4o-mini");
+    expect(saved.tokensUsedInput).toBe(10);
+    expect(saved.tokensUsedOutput).toBe(5);
+    expect(saved.emailsConsidered).toBe(1);
+    expect(result.briefingId).toBe(saved.id);
   });
 
   it("propaga error de save", async () => {

@@ -1,9 +1,27 @@
 import type { Metadata } from "next";
 import "./globals.css";
 
+const appUrl = process.env.APP_URL ?? "http://localhost:3030";
+
 export const metadata: Metadata = {
-  title: "FocusFlow",
-  description: "Morning briefing diario generado por IA desde tu bandeja de Gmail.",
+  metadataBase: new URL(appUrl),
+  title: "FocusFlow — Tu briefing matutino con IA",
+  description:
+    "Cada mañana recibes un email con el resumen de tu inbox de Gmail generado por IA. Empieza el día sabiendo qué importa.",
+  applicationName: "FocusFlow",
+  openGraph: {
+    title: "FocusFlow",
+    description: "Tu briefing matutino con IA",
+    url: appUrl,
+    siteName: "FocusFlow",
+    locale: "es_ES",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "FocusFlow",
+    description: "Tu briefing matutino con IA",
+  },
 };
 
 export default function RootLayout({

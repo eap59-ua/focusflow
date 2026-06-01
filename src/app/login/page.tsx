@@ -2,7 +2,7 @@
 
 import { createTRPCClient, httpBatchLink, TRPCClientError } from "@trpc/client";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 
 import type { AppRouter } from "@/presentation/trpc/routers/_app";
 
@@ -12,7 +12,7 @@ function makeTrpcClient() {
   });
 }
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const justRegistered = searchParams.get("registered") === "1";
@@ -40,8 +40,7 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="mx-auto mt-16 max-w-sm px-4">
-      <h1 className="mb-6 text-2xl font-semibold">Iniciar sesión</h1>
+    <>
       {justRegistered && (
         <p className="mb-4 rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
           Cuenta creada. Ahora puedes iniciar sesión.
@@ -77,6 +76,19 @@ export default function LoginPage() {
         </button>
         {error && <p className="text-sm text-red-600">{error}</p>}
       </form>
+    </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <main className="mx-auto mt-16 max-w-sm px-4">
+      <h1 className="mb-6 text-2xl font-semibold">Iniciar sesión</h1>
+      {/* useSearchParams() requiere un Suspense boundary para el prerender
+          estático de Next.js 15. Sin esto, `next build` falla al exportar /login. */}
+      <Suspense fallback={null}>
+        <LoginForm />
+      </Suspense>
     </main>
   );
 }

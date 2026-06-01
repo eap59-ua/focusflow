@@ -23,9 +23,11 @@ export class UpdateBriefingPreferences {
       throw new UserNotFoundError();
     }
 
+    // S3: una sola transición de dominio por rama (evita la doble allocation /
+    // doble updatedAt que generaba updateBriefingPreferences(...).disableBriefing()).
     const updated = input.enabled
       ? user.enableBriefing(input.hour, input.timezone)
-      : user.updateBriefingPreferences(input.hour, input.timezone).disableBriefing();
+      : user.disableBriefingWith(input.hour, input.timezone);
 
     await this.deps.userRepo.save(updated);
 

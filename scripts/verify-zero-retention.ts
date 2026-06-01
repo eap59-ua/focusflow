@@ -106,6 +106,10 @@ async function checkQueueRemoveConfig(redis: Redis): Promise<CheckResult> {
     { name: QUEUE_NAMES.GENERATE_BRIEFING, q: buildGenerateBriefingQueue(redis) },
     { name: QUEUE_NAMES.SEND_BRIEFING_EMAIL, q: buildSendBriefingEmailQueue(redis) },
   ];
+  // Umbrales del compromiso zero-retention estricto (S1, Paso 8). Ver
+  // docs/audits/zero-retention-policy.md § "Compromiso explícito (Paso 8)".
+  const MAX_COMPLETE_AGE = 300; // 5 min
+  const MAX_FAIL_AGE = 3600; // 1 h
   const offenders: string[] = [];
   try {
     for (const { name, q } of queues) {
@@ -124,9 +128,21 @@ async function checkQueueRemoveConfig(redis: Redis): Promise<CheckResult> {
         typeof removeOnComplete.age !== "number"
       ) {
         offenders.push(`${name}: removeOnComplete no es { age, count }`);
+      } else if (removeOnComplete.age > MAX_COMPLETE_AGE) {
+        offenders.push(
+          `${name}: removeOnComplete.age=${removeOnComplete.age}s supera el máximo ${MAX_COMPLETE_AGE}s`,
+        );
       }
-      if (!removeOnFail || typeof removeOnFail !== "object") {
+      if (
+        !removeOnFail ||
+        typeof removeOnFail !== "object" ||
+        typeof removeOnFail.age !== "number"
+      ) {
         offenders.push(`${name}: removeOnFail no es objeto con age`);
+      } else if (removeOnFail.age > MAX_FAIL_AGE) {
+        offenders.push(
+          `${name}: removeOnFail.age=${removeOnFail.age}s supera el máximo ${MAX_FAIL_AGE}s`,
+        );
       }
     }
   } finally {

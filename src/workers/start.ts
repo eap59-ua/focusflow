@@ -9,10 +9,16 @@ import {
   buildSendBriefingEmailWorker,
 } from "@/jobs";
 
+import { isSchedulerDisabled } from "./scheduler-flag";
+
 async function main(): Promise<void> {
-  if (process.env.SCHEDULER_ENABLED === "false") {
-    console.log("[workers] SCHEDULER_ENABLED=false, exiting.");
-    process.exit(0);
+  if (isSchedulerDisabled()) {
+    // S6: NO process.exit(0). Bajo `concurrently` (pnpm dev) un exit del proceso
+    // workers puede tumbar también el proceso `next`. Mantenemos el proceso vivo
+    // en idle; SIGINT/SIGTERM lo terminan limpio.
+    console.log("[workers] SCHEDULER_ENABLED=false — proceso en idle.");
+    await new Promise<void>(() => {});
+    return;
   }
 
   const prisma = getPrismaClient();
