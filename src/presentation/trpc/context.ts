@@ -1,8 +1,8 @@
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import type { FetchCreateContextFnOptions } from "@trpc/server/adapters/fetch";
 import { parse as parseCookie } from "cookie";
 
+import { getPrismaClient, getRedisClient } from "@/infrastructure/clients";
 import { buildContainer, type Container } from "@/infrastructure/container";
 
 export interface AppContext {
@@ -10,22 +10,6 @@ export interface AppContext {
   readonly container: Container;
   readonly sessionId: string | null;
   readonly resHeaders: Headers;
-}
-
-let prismaSingleton: PrismaClient | undefined;
-
-function getPrismaClient(): PrismaClient {
-  if (!prismaSingleton) {
-    const connectionString = process.env.DATABASE_URL;
-    if (!connectionString) {
-      throw new Error(
-        "DATABASE_URL no está definida. Revisa tu .env antes de arrancar el servidor.",
-      );
-    }
-    const adapter = new PrismaPg({ connectionString });
-    prismaSingleton = new PrismaClient({ adapter });
-  }
-  return prismaSingleton;
 }
 
 export function sessionCookieName(): string {
@@ -41,7 +25,8 @@ export function extractSessionId(req: Request): string | null {
 
 export function createContext(opts: FetchCreateContextFnOptions): AppContext {
   const prisma = getPrismaClient();
-  const container = buildContainer(prisma);
+  const redis = getRedisClient();
+  const container = buildContainer({ prisma, redis });
   const sessionId = extractSessionId(opts.req);
   return {
     prisma,
@@ -52,5 +37,5 @@ export function createContext(opts: FetchCreateContextFnOptions): AppContext {
 }
 
 export function getServerContainer(): Container {
-  return buildContainer(getPrismaClient());
+  return buildContainer({ prisma: getPrismaClient(), redis: getRedisClient() });
 }
