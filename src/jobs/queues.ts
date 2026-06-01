@@ -4,6 +4,7 @@ export const QUEUE_NAMES = {
   GMAIL_INBOX_SYNC: "gmail-inbox-sync",
   GENERATE_BRIEFING: "generate-briefing",
   SEND_BRIEFING_EMAIL: "send-briefing-email",
+  BRIEFING_TRIGGER: "briefing-trigger",
 } as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
@@ -41,5 +42,14 @@ export function buildSendBriefingEmailQueue(
   return new Queue(QUEUE_NAMES.SEND_BRIEFING_EMAIL, {
     connection,
     defaultJobOptions: SEND_EMAIL_JOB_OPTIONS,
+  });
+}
+
+export function buildBriefingTriggerQueue(
+  connection: ConnectionOptions,
+): Queue {
+  return new Queue(QUEUE_NAMES.BRIEFING_TRIGGER, {
+    connection,
+    defaultJobOptions: DEFAULT_JOB_OPTIONS,
   });
 }

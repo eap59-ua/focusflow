@@ -68,6 +68,7 @@ function makeDeps(
     save: vi.fn(),
     findByEmail: vi.fn(),
     findById: findUserById,
+    findAllWithBriefingEnabled: vi.fn(async () => []),
   };
   const renderer: BriefingEmailRendererPort = { render };
   const emailSender: EmailSenderPort = { send };

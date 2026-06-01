@@ -67,6 +67,9 @@ describe("User aggregate", () => {
       email: Email.create("persisted@example.com"),
       hashedPassword: HashedPassword.fromHash("$2a$10$persisted"),
       displayName: "Persisted",
+      briefingHour: 8,
+      briefingTimezone: "Europe/Madrid",
+      briefingEnabled: false,
       createdAt,
       updatedAt,
     });

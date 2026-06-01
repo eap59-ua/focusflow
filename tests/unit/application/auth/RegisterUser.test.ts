@@ -24,7 +24,13 @@ function makeDeps(
   const hash = vi.fn(overrides.hash ?? (async () => "$2a$10$hashed"));
   const verify = vi.fn(overrides.verify ?? (async () => true));
 
-  const userRepo: UserRepositoryPort = { findByEmail, findById, save };
+  const findAllWithBriefingEnabled = vi.fn(async () => [] as const);
+  const userRepo: UserRepositoryPort = {
+    findByEmail,
+    findById,
+    findAllWithBriefingEnabled,
+    save,
+  };
   const hasher: PasswordHasherPort = { hash, verify };
   return { userRepo, hasher, findByEmail, findById, save, hash, verify };
 }

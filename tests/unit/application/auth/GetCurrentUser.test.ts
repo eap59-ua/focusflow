@@ -73,6 +73,7 @@ function makeDeps(
   const userRepo: UserRepositoryPort = {
     findByEmail: userFindByEmail,
     findById: userFindById,
+    findAllWithBriefingEnabled: vi.fn(async () => []),
     save: userSave,
   };
   return {

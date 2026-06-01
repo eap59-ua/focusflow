@@ -13,6 +13,11 @@ import { CompleteGmailConnection } from "@/application/use-cases/gmail/CompleteG
 import { DisconnectGmail } from "@/application/use-cases/gmail/DisconnectGmail";
 import { GetGmailStatus } from "@/application/use-cases/gmail/GetGmailStatus";
 import { RefreshGmailToken } from "@/application/use-cases/gmail/RefreshGmailToken";
+import { ScheduleAllActiveBriefings } from "@/application/use-cases/scheduling/ScheduleAllActiveBriefings";
+import { TriggerBriefingForUser } from "@/application/use-cases/scheduling/TriggerBriefingForUser";
+import { UpdateBriefingPreferences } from "@/application/use-cases/scheduling/UpdateBriefingPreferences";
+
+import { buildBriefingTriggerQueue } from "@/jobs/queues";
 
 import { NodemailerEmailSender } from "./adapters/email/NodemailerEmailSender";
 import { GmailEmailFetcher } from "./adapters/gmail/GmailEmailFetcher";
@@ -26,6 +31,7 @@ import { PrismaUserRepository } from "./adapters/prisma/PrismaUserRepository";
 import { BcryptPasswordHasher } from "./adapters/security/BcryptPasswordHasher";
 import { HtmlBriefingEmailRenderer } from "./email/HtmlBriefingEmailRenderer";
 import { MORNING_BRIEFING_PROMPT_VERSION } from "./openai/prompts/morning-briefing";
+import { BullMQBriefingScheduler } from "./scheduling/BullMQBriefingScheduler";
 import { AesGcmTokenEncryption } from "./security/AesGcmTokenEncryption";
 
 const DEFAULT_SESSION_LIFETIME_DAYS = 30;
@@ -51,6 +57,9 @@ export interface Container {
   readonly fetchInboxEmails: FetchInboxEmails;
   readonly generateBriefing: GenerateBriefing;
   readonly sendBriefingEmail: SendBriefingEmail;
+  readonly updateBriefingPreferences: UpdateBriefingPreferences;
+  readonly scheduleAllActiveBriefings: ScheduleAllActiveBriefings;
+  readonly triggerBriefingForUser: TriggerBriefingForUser;
 }
 
 function readSessionLifetimeDays(): number {
@@ -151,18 +160,31 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     oauthStateStore,
     oauthClient,
   });
+  const briefingTriggerQueue = buildBriefingTriggerQueue(redis);
+  const briefingScheduler = new BullMQBriefingScheduler({
+    briefingTriggerQueue,
+    connection: redis,
+  });
   const completeGmailConnection = new CompleteGmailConnection({
     oauthStateStore,
     oauthClient,
     tokenEncryption,
     gmailIntegrationRepo,
+    userRepo,
+    scheduler: briefingScheduler,
+    defaultBriefingHour: 8,
+    defaultBriefingTimezone: "Europe/Madrid",
   });
   const refreshGmailToken = new RefreshGmailToken({
     gmailIntegrationRepo,
     tokenEncryption,
     oauthClient,
   });
-  const disconnectGmail = new DisconnectGmail({ gmailIntegrationRepo });
+  const disconnectGmail = new DisconnectGmail({
+    gmailIntegrationRepo,
+    userRepo,
+    scheduler: briefingScheduler,
+  });
   const getGmailStatus = new GetGmailStatus({ gmailIntegrationRepo });
 
   const emailFetcher = new GmailEmailFetcher();
@@ -206,6 +228,19 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     },
   });
 
+  const updateBriefingPreferences = new UpdateBriefingPreferences({
+    userRepo,
+    scheduler: briefingScheduler,
+  });
+  const scheduleAllActiveBriefings = new ScheduleAllActiveBriefings({
+    userRepo,
+    scheduler: briefingScheduler,
+  });
+  const triggerBriefingForUser = new TriggerBriefingForUser({
+    userRepo,
+    scheduler: briefingScheduler,
+  });
+
   return {
     registerUser,
     loginUser,
@@ -219,5 +254,8 @@ export function buildContainer(opts: BuildContainerOptions): Container {
     fetchInboxEmails,
     generateBriefing,
     sendBriefingEmail,
+    updateBriefingPreferences,
+    scheduleAllActiveBriefings,
+    triggerBriefingForUser,
   };
 }

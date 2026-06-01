@@ -64,6 +64,19 @@ function makeDeps(
     findByUserId,
     deleteByUserId,
   };
+  const userRepo: import("@/application/ports/UserRepositoryPort").UserRepositoryPort =
+    {
+      findByEmail: vi.fn(),
+      findById: vi.fn(async () => null),
+      findAllWithBriefingEnabled: vi.fn(async () => []),
+      save: vi.fn(),
+    };
+  const scheduler: import("@/application/ports/BriefingSchedulerPort").BriefingSchedulerPort =
+    {
+      scheduleForUser: vi.fn(),
+      unscheduleForUser: vi.fn(),
+      triggerNow: vi.fn(),
+    };
 
   return {
     deps: {
@@ -71,6 +84,10 @@ function makeDeps(
       oauthClient,
       tokenEncryption,
       gmailIntegrationRepo,
+      userRepo,
+      scheduler,
+      defaultBriefingHour: 8,
+      defaultBriefingTimezone: "Europe/Madrid",
     },
     consume,
     exchangeCode,

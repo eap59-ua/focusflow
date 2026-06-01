@@ -1,7 +1,9 @@
+import type { BriefingSchedulerPort } from "@/application/ports/BriefingSchedulerPort";
 import type { GmailIntegrationRepositoryPort } from "@/application/ports/GmailIntegrationRepositoryPort";
 import type { OAuthClientPort } from "@/application/ports/OAuthClientPort";
 import type { OAuthStateStorePort } from "@/application/ports/OAuthStateStorePort";
 import type { TokenEncryptionPort } from "@/application/ports/TokenEncryptionPort";
+import type { UserRepositoryPort } from "@/application/ports/UserRepositoryPort";
 import { EncryptedToken } from "@/domain/gmail-integration/EncryptedToken";
 import { GmailIntegration } from "@/domain/gmail-integration/GmailIntegration";
 import { OAuthStateMismatchError } from "@/domain/gmail-integration/errors/OAuthStateMismatchError";
@@ -11,6 +13,10 @@ export interface CompleteGmailConnectionDependencies {
   readonly oauthClient: OAuthClientPort;
   readonly tokenEncryption: TokenEncryptionPort;
   readonly gmailIntegrationRepo: GmailIntegrationRepositoryPort;
+  readonly userRepo: UserRepositoryPort;
+  readonly scheduler: BriefingSchedulerPort;
+  readonly defaultBriefingHour: number;
+  readonly defaultBriefingTimezone: string;
 }
 
 export interface CompleteGmailConnectionInput {
@@ -52,6 +58,16 @@ export class CompleteGmailConnection {
       tokenExpiresAt: new Date(Date.now() + exchange.expiresInSeconds * 1000),
     });
     await this.deps.gmailIntegrationRepo.save(integration);
+
+    const user = await this.deps.userRepo.findById(input.userId);
+    if (user) {
+      const enabled = user.enableBriefing(
+        this.deps.defaultBriefingHour,
+        this.deps.defaultBriefingTimezone,
+      );
+      await this.deps.userRepo.save(enabled);
+      await this.deps.scheduler.scheduleForUser(enabled);
+    }
 
     return { integration };
   }
